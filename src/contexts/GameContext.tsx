@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Spieler, Schnick, SchnickZahl } from '../lib/supabase';
 import { usePlayer } from './PlayerContext';

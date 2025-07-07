@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '../lib/supabase';
+
+type DebugResult = {
+  schnicks: any[];
+  spielerSchnicks: any[];
+  players: any[];
+  zahlen: any[];
+  error: string | null;
+  loading: boolean;
+};
 
 export const DebugDatabase = () => {
   const [debugResult, setDebugResult] = useState<any>({
@@ -12,7 +21,7 @@ export const DebugDatabase = () => {
   });
 
   const runDebugQuery = async () => {
-    setDebugResult(prev => ({ ...prev, loading: true }));
+    setDebugResult((prev: any) => ({ ...prev, loading: true }));
     
     try {
       // Direct query to check schnicks
@@ -23,7 +32,7 @@ export const DebugDatabase = () => {
 
       if (schnicksError) {
         console.error('Error querying schnicks:', schnicksError);
-        setDebugResult(prev => ({ 
+        setDebugResult((prev: any) => ({ 
           ...prev, 
           error: schnicksError.message,
           loading: false 
@@ -34,9 +43,9 @@ export const DebugDatabase = () => {
       console.log('Found schnicks:', schnicks);
       
       // Get all spieler_schnicks relationships
-      let spielerSchnicks = [];
-      let players = [];
-      let zahlen = [];
+      let spielerSchnicks: any[] = [];
+      let players: any[] = [];
+      let zahlen: any[] = [];
       
       if (schnicks && schnicks.length > 0) {
         const schnickIds = schnicks.map((s: any) => s.id);
@@ -85,7 +94,7 @@ export const DebugDatabase = () => {
       
     } catch (error: any) {
       console.error('Error in debug query:', error);
-      setDebugResult(prev => ({ 
+      setDebugResult((prev: any) => ({ 
         ...prev, 
         error: error.message,
         loading: false 
@@ -95,7 +104,7 @@ export const DebugDatabase = () => {
   
   // Create test data
   const createTestData = async () => {
-    setDebugResult(prev => ({ ...prev, loading: true }));
+    setDebugResult((prev: any) => ({ ...prev, loading: true }));
     
     try {
       // 1. First check if there are any players

@@ -2,12 +2,11 @@ import React from 'react';
 import { FullScreenLayout } from './layout/FullScreenLayout';
 import { ActionButton } from './ui/ActionButton';
 import { useAppState } from '../contexts/AppStateContext';
-import type { GameWithPlayers } from '../contexts/GameContext';
 
 type ResultType = 'schnicker_won' | 'angeschnickter_won' | 'eigentor' | 'no_winner';
 
 interface GameResultModalProps {
-  game: GameWithPlayers;
+  game: any;
   resultType: ResultType;
   onClose: () => void;
 }
