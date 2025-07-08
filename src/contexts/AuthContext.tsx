@@ -1,15 +1,17 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { supabase, SUPABASE_AUTH_URL, supabaseAnonKey } from '../lib/supabase';
-import type { Session, User } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import type { Session, User, AuthError } from '@supabase/supabase-js';
 
-type AuthContextType = {
+// Types for our context
+interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  setUser: (user: User | null) => void;
+  signInWithEmail: (email: string, password: string) => Promise<{error: AuthError | null}>;
+  error: AuthError | null;
   signOut: () => Promise<void>;
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -17,140 +19,134 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<AuthError | null>(null);
 
   useEffect(() => {
-    // Check for hash parameters from OAuth redirect
-    const handleAuthCallback = async () => {
-      if (window.location.hash && window.location.hash.includes('access_token')) {
-        console.log('Auth redirect detected, processing tokens...');
-        
+    // Initial auth state check
+    const initAuth = async () => {
+      // First check local storage for cached auth state
+      const savedAuthState = localStorage.getItem('schnicken-auth-state');
+      if (savedAuthState) {
         try {
-          // Extract the hash parameters without the # character
-          const hashParams = new URLSearchParams(window.location.hash.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
-          
-          if (accessToken) {
-            // Clean up the URL by removing the hash parameters
-            window.history.replaceState({}, document.title, window.location.pathname);
+          const authData = JSON.parse(savedAuthState);
+          if (authData.session && authData.user) {
+            // Verify if token is still valid before using cached session
+            const { data: { session: currentSession } } = await supabase.auth.getSession();
             
-            // Create a temporary Supabase client using the actual URL to handle auth
-            const tempClient = createClient(
-              SUPABASE_AUTH_URL, // Use the actual URL for auth
-              supabaseAnonKey
-            );
-            
-            // Set the session with the tokens using the temporary client
-            const { data, error } = await tempClient.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || ''
-            });
-            
-            if (error) {
-              console.error('Error setting session from redirect:', error);
+            if (currentSession) {
+              console.log('Using valid cached auth session');
+              setSession(currentSession);
+              setUser(currentSession.user);
+              setLoading(false);
+              return;
             } else {
-              console.log('Session set successfully from redirect');
-              // Get user from the session
-              const user = data.session?.user ?? null;
-              
-              // Update our local state
-              setSession(data.session);
-              setUser(user);
-              
-              // Also set the session in our regular client
-              await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken || ''
-              });
-              
-              console.log('User authenticated:', user?.email);
+              console.log('Cached session invalid, clearing');
+              localStorage.removeItem('schnicken-auth-state');
             }
           }
         } catch (error) {
-          console.error('Error handling auth callback:', error);
+          console.error('Error parsing cached auth state:', error);
+          localStorage.removeItem('schnicken-auth-state');
         }
       }
-    };
-    
-    // Get initial session
-    const getSession = async () => {
-      setLoading(true);
-      
-      try {
-        // Handle redirect first if present
-        await handleAuthCallback();
+
+      // Fallback to Supabase session check
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setSession(session);
+        setUser(session.user);
         
-        // Then get current session
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-      } catch (error) {
-        console.error('Error getting session:', error);
-      } finally {
-        setLoading(false);
+        localStorage.setItem('schnicken-auth-state', JSON.stringify({
+          session,
+          user: session.user,
+          playerId: localStorage.getItem('currentPlayerId')
+        }));
       }
+      
+      setLoading(false);
     };
 
-    getSession();
+    initAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, currentSession) => {
-        console.log('Auth state changed:', _event);
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+    // Auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      // Update localStorage with new auth state
+      if (session && session.user) {
+        const currentPlayerId = localStorage.getItem('currentPlayerId');
+        localStorage.setItem('schnicken-auth-state', JSON.stringify({
+          session,
+          user: session.user,
+          playerId: currentPlayerId // Include current player ID if available
+        }));
+      } else if (event === 'SIGNED_OUT') {
+        // Clear local client session as well
+        await supabase.auth.signOut();
+        localStorage.removeItem('schnicken-auth-state'); // Clear saved auth state
+        localStorage.removeItem('currentPlayerId'); // Clear player ID
       }
-    );
+    });
 
+    // Clean up auth listener
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
-  // Sign in with Google using a two-step process for our setup
-  const signInWithGoogle = async () => {
+  // Sign in with email/password
+  const signInWithEmail = async (email: string, password: string) => {
     try {
-      console.log('Starting two-step Google OAuth flow...');
+      console.log('Signing in with direct Supabase client');
+      setError(null);
       
-      // Step 1: Create a custom auth URL that works with our setup
-      const redirectUrl = encodeURIComponent(window.location.origin);
-      const googleAuthUrl = `${SUPABASE_AUTH_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectUrl}`;
+      // Use the Supabase client directly
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
-      console.log('Redirecting to Google auth:', googleAuthUrl);
+      if (error) {
+        console.error('Error signing in:', error);
+        setError(error);
+        return { error };
+      }
       
-      // Step 2: Redirect the browser to the auth URL
-      // When Google auth completes, it will redirect back to our app
-      // with the auth tokens in the URL hash
-      window.location.href = googleAuthUrl;
+      if (data.session && data.user) {
+        console.log('Sign in successful');
+        // Session is already managed by the onAuthStateChange listener
+        // but we update the state here for immediate feedback
+        setSession(data.session);
+        setUser(data.user);
+      }
       
-      // No need to wait as we're redirecting the browser
-      return;
-    } catch (error) {
-      console.error('Error starting Google sign-in:', error);
-      alert('Error signing in with Google. Please try again.');
+      return { error: null };
+    } catch (unexpectedError) {
+      console.error('Unexpected error during signin:', unexpectedError);
+      const authError = { message: 'Unexpected error during signin' } as AuthError;
+      setError(authError);
+      return { error: authError };
     }
   };
 
   // Sign out
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error signing out:', error);
-      alert('Error signing out. Please try again.');
-    }
+    await supabase.auth.signOut();
+    localStorage.removeItem('currentPlayerId');
   };
-
+  
   return (
     <AuthContext.Provider
       value={{
         session,
         user,
         loading,
-        signInWithGoogle,
+        setUser,
+        signInWithEmail,
+        error,
         signOut
       }}
     >
@@ -167,3 +163,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default AuthContext;
