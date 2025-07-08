@@ -48,19 +48,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Sign in with Google
+  // Sign in with Google using standard Supabase Auth
   const signInWithGoogle = async () => {
     try {
-      console.log('Starting Google OAuth flow using proxy server...');
+      console.log('Starting Google OAuth flow with Supabase Auth...');
       
-      // Direct browser to proxy server auth endpoint
-      // This avoids API calls and uses direct browser redirection
-      window.location.href = 'http://localhost:3001/auth/v1/authorize?provider=google&redirect_to=http://localhost:3000';
+      // Use standard Supabase Auth OAuth flow
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
       
-      // No need to await response as we're redirecting the browser
-      return;
+      if (error) {
+        console.error('OAuth error:', error);
+        throw error;
+      }
+      
+      console.log('OAuth flow initiated:', data);
     } catch (error) {
-      console.error('Error initiating Google sign-in:', error);
+      console.error('Error signing in with Google:', error);
       alert('Error signing in with Google. Please try again.');
     }
   };
