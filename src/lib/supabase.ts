@@ -8,12 +8,12 @@ export const DB_CONNECTION_STRING = 'postgresql://postgres.sfeckdcnlczdtvwpdxer:
 // Für die Client-Verbindung verwenden wir einen Standard-Supabase-Client
 // Gemäß der Benutzerregel: "only use localhost:3000"
 
-// Für die Client-Verbindung verwenden wir die echte Supabase-Projekt-URL
-// Dies ist notwendig für die korrekte Funktion der Supabase Auth
-const supabaseUrl = 'https://sfeckdcnlczdtvwpdxer.supabase.co';
+// Gemäß der Benutzerregel: "only use localhost:3000"
+const supabaseUrl = 'http://localhost:3000';
 
-// Für die Entwicklung: API-Zugriffe können später über einen lokalen Proxy geleitet werden
-// Auth-Funktionalität muss jedoch direkt mit der Supabase-URL arbeiten
+// Für Google Auth funktionalität benötigen wir die echte Supabase URL
+// Diese wird nur für die Weiterleitung zu Google OAuth verwendet
+export const SUPABASE_AUTH_URL = 'https://sfeckdcnlczdtvwpdxer.supabase.co';
 
 // Service-Role-Key für erweiterte Berechtigungen
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTgxNTM2NiwiZXhwIjoyMDY3MzkxMzY2fQ.a5SnwwzoQJnoZu1eYTEPX4vB7va4YYLGBYoKGJGQZRw';

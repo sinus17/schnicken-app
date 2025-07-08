@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_AUTH_URL } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 
 type AuthContextType = {
@@ -48,25 +48,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Sign in with Google using standard Supabase Auth
+  // Sign in with Google using direct URL to Supabase Auth
   const signInWithGoogle = async () => {
     try {
-      console.log('Starting Google OAuth flow with Supabase Auth...');
+      console.log('Starting Google OAuth flow via direct URL...');
       
-      // Use standard Supabase Auth OAuth flow
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
+      // Redirect directly to Supabase Auth URL for Google login
+      // This bypasses any localhost:3000 issues
+      const redirectUrl = encodeURIComponent(window.location.origin);
+      const authUrl = `${SUPABASE_AUTH_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectUrl}`;
       
-      if (error) {
-        console.error('OAuth error:', error);
-        throw error;
-      }
+      console.log('Redirecting to:', authUrl);
+      window.location.href = authUrl;
       
-      console.log('OAuth flow initiated:', data);
+      // No need to wait as we're redirecting the browser
+      return;
     } catch (error) {
       console.error('Error signing in with Google:', error);
       alert('Error signing in with Google. Please try again.');
