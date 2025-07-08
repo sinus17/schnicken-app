@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FullScreenLayout } from './layout/FullScreenLayout';
 import { ActionButton } from './ui/ActionButton';
 import { useGame } from '../contexts/GameContext';
 import type { GameWithPlayers } from '../contexts/GameContext';
 import { useAppState } from '../contexts/AppStateContext';
 import { usePlayer } from '../contexts/PlayerContext';
-import { GameResultModal } from './GameResultModal';
+import { Round2ResultModal } from './Round2ResultModal';
 
 interface Round2ResponseProps {
   forceShow?: boolean;
@@ -22,7 +22,6 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedGameIndex, setSelectedGameIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
-  const [gameResult, setGameResult] = useState<'schnicker_won' | 'angeschnickter_won' | 'eigentor' | 'no_winner'>('no_winner');
   
   // Filter für Spiele mit Status "runde2", bei denen der aktuelle Spieler noch keine Zahl für Runde 2 eingegeben hat
   const pendingGames = activeGames ? activeGames.filter(game => {
@@ -62,6 +61,26 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
     return null;
   }
   
+  // Check if both round 2 numbers are available to show immediate result
+  useEffect(() => {
+    if (gameToUse && gameToUse.runde2_zahlen && gameToUse.runde2_zahlen.length === 2) {
+      console.log('Round2Response: Both round 2 numbers available, showing result automatically');
+      setShowResult(true);
+    }
+  }, [gameToUse, gameToUse?.runde2_zahlen?.length]);
+  
+  // Additional deep watch for changes to runde2_zahlen array contents
+  // This ensures we catch updates even when the array reference doesn't change
+  useEffect(() => {
+    const zahlenString = JSON.stringify(gameToUse?.runde2_zahlen || []);
+    console.log('Round2Response: Monitoring runde2_zahlen changes', zahlenString);
+    
+    if (gameToUse?.runde2_zahlen?.length === 2) {
+      console.log('Round2Response: Both round 2 numbers detected via deep watch');
+      setShowResult(true);
+    }
+  }, [JSON.stringify(gameToUse?.runde2_zahlen)]);
+  
   // Check if player already submitted their number for round 2
   const playerSubmittedR2 = currentPlayer && gameToUse.runde2_zahlen?.some(z => z.spieler_id === currentPlayer.id);
   
@@ -100,7 +119,7 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
     );
   }
 
-  // Ermittle die niedrigste Zahl aus Runde 1
+  // Ermittle die Zahl für den Bereich in Runde 2
   const findLowestRound1Number = (game: GameWithPlayers): number => {
     if (!game.runde1_zahlen || game.runde1_zahlen.length !== 2) {
       console.log('Round2Response: Invalid runde1_zahlen, defaulting to 1', game.runde1_zahlen);
@@ -109,6 +128,14 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
     
     const numbers = game.runde1_zahlen.map(z => z.zahl);
     console.log('Round2Response: Round 1 numbers:', numbers);
+    
+    // If any player chose 4 or lower, use 4 as the max range for Round 2
+    if (numbers.some(num => num <= 4)) {
+      console.log('Round2Response: Using fixed range 1-4 for Round 2');
+      return 4;
+    }
+    
+    // Otherwise use the minimum number from Round 1
     return Math.min(...numbers);
   };
   
@@ -141,13 +168,6 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
       if (updatedGame && updatedGame.status === 'beendet') {
         // Spiel ist beendet, zeige Ergebnis an
         console.log('Game is completed, showing result', updatedGame.ergebnis);
-        if (updatedGame.ergebnis === 'schnicker') {
-          setGameResult('eigentor');
-        } else if (updatedGame.ergebnis === 'angeschnickter') {
-          setGameResult('schnicker_won');
-        } else {
-          setGameResult('no_winner');
-        }
         setShowResult(true);
       } else {
         // Zum nächsten Spiel wechseln oder zurück zum Menü, wenn alle beantwortet
@@ -169,9 +189,8 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
   // Wenn das Ergebnis angezeigt wird
   if (showResult) {
     return (
-      <GameResultModal
+      <Round2ResultModal
         game={gameToUse}
-        resultType={gameResult}
         onClose={handleNextGame}
       />
     );
@@ -248,13 +267,11 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
               max={lowestRound1Number}
               value={selectedNumber}
               onChange={(e) => setSelectedNumber(e.target.value)}
-              className="w-full p-4 bg-schnicken-dark text-schnicken-light rounded-lg text-xl text-center"
+              className="w-full p-4 bg-schnicken-dark text-black font-bold rounded-lg text-xl text-center"
               placeholder={`1-${lowestRound1Number}`}
               disabled={isUpdating}
             />
-            <div className="text-sm text-schnicken-light mt-1 text-center">
-              Wähle eine Zahl zwischen 1 und {lowestRound1Number}
-            </div>
+
           </div>
         </div>
         

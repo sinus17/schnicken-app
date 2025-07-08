@@ -17,11 +17,22 @@ interface AppStateContextType {
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
 
 export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Prüfe beim Initialisieren, ob ein Spieler im localStorage gespeichert ist
-  const initialView: AppView = localStorage.getItem('currentPlayerId') ? 'menu' : 'player-select';
-  const [currentView, setCurrentView] = useState<AppView>(initialView);
+  // Initialize view based on player ID status without automatic redirects
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    const hasPlayerId = localStorage.getItem('currentPlayerId') !== null;
+    return hasPlayerId ? 'menu' : 'player-select';
+  });
 
   const navigateTo = (view: AppView) => {
+    console.log('navigateTo called with view:', view, 'current view:', currentView);
+    
+    // For users with player ID, never go back to player-select
+    if (view === 'player-select' && localStorage.getItem('currentPlayerId')) {
+      console.log('Preventing user with player ID from going to player-select');
+      return;
+    }
+    
+    console.log('Setting current view to:', view);
     setCurrentView(view);
   };
 

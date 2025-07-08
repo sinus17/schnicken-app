@@ -1,7 +1,9 @@
 import { useAuth } from '../contexts/AuthContext';
+import { usePlayer } from '../contexts/PlayerContext';
 
 export const UserProfile = () => {
   const { user, signOut } = useAuth();
+  const { currentPlayer } = usePlayer();
   
   if (!user) {
     return null;
@@ -9,15 +11,10 @@ export const UserProfile = () => {
 
   return (
     <div className="flex items-center gap-3">
-      {user.user_metadata?.avatar_url && (
-        <img 
-          src={user.user_metadata.avatar_url} 
-          alt="Profile" 
-          className="w-8 h-8 rounded-full"
-        />
-      )}
       <div>
-        <div className="text-sm font-medium">{user.user_metadata?.full_name || user.email}</div>
+        <div className="text-sm font-medium">
+          {currentPlayer?.name || 'User'}
+        </div>
         <button 
           onClick={() => signOut()} 
           className="text-xs text-blue-600 hover:underline"

@@ -2,17 +2,33 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Login = () => {
-  const { signInWithGoogle, loading } = useAuth();
+  const { signInWithEmail, loading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      setErrorMessage('Bitte E-Mail und Passwort eingeben');
+      return;
+    }
+    
     setIsLoggingIn(true);
+    setErrorMessage('');
+    
     try {
-      await signInWithGoogle();
+      const { error } = await signInWithEmail(email, password);
+      
+      if (error) {
+        setErrorMessage(error.message || 'Anmeldung fehlgeschlagen');
+      }
     } finally {
       setIsLoggingIn(false);
     }
   };
+  
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-schnicken-darkest">
@@ -24,19 +40,40 @@ export const Login = () => {
         />
         <h1 className="text-2xl font-bold text-center mb-6 text-schnicken-light">Wie viel Bock hast Du, ...?</h1>
         
-        <button
-          onClick={handleLogin}
-          disabled={loading || isLoggingIn}
-          className="w-full flex items-center justify-center gap-2 bg-schnicken-medium border border-schnicken-light rounded-lg py-3 px-4 text-white hover:bg-schnicken-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-schnicken-light transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24">
-            <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-            <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
-            <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
-            <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
-          </svg>
-          <span className="text-white">{isLoggingIn ? 'Anmeldung...' : 'Mit Google anmelden'}</span>
-        </button>
+        {errorMessage && (
+          <div className="w-full p-3 mb-4 bg-red-900/30 border border-red-500 rounded text-red-200 text-sm">
+            {errorMessage}
+          </div>
+        )}
+        
+        <div className="w-full space-y-4">
+          
+          <input
+            type="email"
+            placeholder="E-Mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoggingIn}
+            className="w-full p-3 border border-schnicken-medium bg-schnicken-darkest text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-schnicken-light"
+          />
+          
+          <input
+            type="password"
+            placeholder="Passwort"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoggingIn}
+            className="w-full p-3 border border-schnicken-medium bg-schnicken-darkest text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-schnicken-light"
+          />
+          
+          <button
+            onClick={handleLogin}
+            disabled={loading || isLoggingIn}
+            className="w-full p-3 bg-schnicken-medium border border-schnicken-light text-white rounded-lg hover:bg-schnicken-light hover:text-schnicken-darkest transition-colors focus:outline-none focus:ring-2 focus:ring-schnicken-light"
+          >
+            {isLoggingIn ? 'Anmeldung...' : 'Anmelden'}
+          </button>
+        </div>
       </div>
     </div>
   );

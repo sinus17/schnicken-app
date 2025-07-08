@@ -5,7 +5,7 @@ import type { Database } from '../types/database.types';
 // This respects the user rule of only exposing localhost:3000 to the frontend
 // by encapsulating the actual Supabase URL inside this proxy
 const supabaseUrl = 'https://sfeckdcnlczdtvwpdxer.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTgxNTM2NiwiZXhwIjoyMDY3MzkxMzY2fQ.a5SnwwzoQJnoZu1eYTEPX4vB7va4YYLGBYoKGJGQZRw';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4MTUzNjYsImV4cCI6MjA2NzM5MTM2Nn0.rfJ8ry0C_C7sGfyw2KoU953PrqDSW9BoM2GAffoc1-8';
 
 // The actual client that will be used internally
 const supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {

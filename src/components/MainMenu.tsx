@@ -17,7 +17,7 @@ export const MainMenu: React.FC = () => {
     >
       {/* User Profile Badge - Fixed Position in Top Right */}
       <div className="fixed top-4 right-4 z-50">
-        <div className="flex items-center bg-schnicken-dark px-3 py-1 rounded-full shadow-md">
+        <div className="flex items-center px-3 py-1 rounded-full shadow-md">
           <UserProfile />
         </div>
       </div>
@@ -36,12 +36,20 @@ export const MainMenu: React.FC = () => {
                 <ButtonCard
                   key={player.id}
                   onClick={() => {
+                    console.log('Player clicked:', player.name, player.id);
                     // Setze URL-Parameter mit der Spieler-ID und navigiere zur CreateGame-Seite
                     window.history.pushState({}, '', `?opponentId=${player.id}`);
+                    console.log('Navigating to create-game');
                     navigateTo('create-game');
+                    console.log('Navigation called');
                   }}
                 >
-                  <div className="text-xl font-medium text-center">{player.name}</div>
+                  <div className="flex items-center gap-4 justify-center w-full">
+                    <div className="w-12 h-12 bg-schnicken-medium rounded-full flex items-center justify-center text-white">
+                      {player.name?.substring(0, 2).toUpperCase() || '??'}
+                    </div>
+                    <div className="text-xl font-medium">{player.name}</div>
+                  </div>
                 </ButtonCard>
               ))
             }

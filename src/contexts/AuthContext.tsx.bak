@@ -1,0 +1,331 @@
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import type { Session, User, AuthError } from '@supabase/supabase-js';
+
+// Types for our context
+interface AuthContextType {
+  session: Session | null;
+  user: User | null;
+  loading: boolean;
+  signInWithEmail: (email: string, password: string) => Promise<{error: AuthError | null}>;
+  signUpWithEmail: (email: string, password: string) => Promise<{error: AuthError | null}>;
+  signOut: () => Promise<void>;
+  ensurePlayerForUser: (email: string | undefined) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check for hash parameters from OAuth redirect
+    const handleAuthCallback = async () => {
+      // Check for error parameters in URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      
+      const errorDescription = searchParams.get('error_description') || hashParams.get('error_description');
+      if (errorDescription) {
+        console.error('Auth error from redirect:', errorDescription);
+        alert(`Authentication error: ${errorDescription}. Please try again.`);
+        // Clean up URL and return
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+      
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        console.log('Auth redirect detected, processing tokens...');
+        
+        try {
+          // Extract the hash parameters without the # character
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          
+          if (accessToken) {
+            // Clean up the URL by removing the hash parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            console.log('Setting session with tokens from redirect...');
+            
+            // Create a temporary Supabase client using the actual URL to handle auth
+            const tempClient = createClient(
+              SUPABASE_AUTH_URL, // Use the actual URL for auth
+              supabaseAnonKey
+            );
+            
+            // Set the session with the tokens using the temporary client first
+            const { data, error } = await tempClient.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            
+            if (error) {
+              console.error('Error setting session from redirect:', error);
+            } else {
+              console.log('Session set successfully with temp client');
+              
+              // Since the main client is configured with localhost:3000, setting the session will fail
+              // Instead, we'll use the session data from the temp client and update our state directly
+              
+              // Get user from the temp client's session
+              const user = data.session?.user ?? null;
+              
+              if (user) {
+                console.log('Using temp client session data for auth state');
+                
+                // Update our local state with the temp client session
+                setSession(data.session);
+                setUser(user);
+                
+                console.log('User authenticated:', user.email);
+                
+                // Force a refresh of the auth state
+                setTimeout(async () => {
+                  // If we have a user at this point, make sure they stay authenticated
+                  // even when navigating within the app
+                  if (user) {
+                    // Persist the session tokens and user data for use on reload
+                    localStorage.setItem('supabase.auth.token', JSON.stringify({
+                      access_token: accessToken,
+                      refresh_token: refreshToken,
+                      user: user
+                    }));
+                    console.log('Persisting authenticated state...');
+                    
+                    // Ensure this user has an associated player
+                    await ensurePlayerForUser(user.email);
+                    
+                    // Debug: Check if currentPlayerId was properly set
+                    const playerId = localStorage.getItem('currentPlayerId');
+                    console.log('After ensurePlayerForUser:', { 
+                      playerId, 
+                      userEmail: user.email,
+                      hasPlayerId: !!playerId
+                    });
+                    
+                    console.log('User associated with player, redirecting to main menu...');
+                    
+                    // Add an explicit navigation to the home page after successful auth
+                    window.location.href = '/';
+                    
+                    return true; // Authentication successful
+                  }
+                }, 100);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error handling auth callback:', error);
+        }
+      }
+    };
+      
+      console.log('Initial session check:', initialSession ? 'User is signed in' : 'No session');
+      setUser(initialSession?.user || null);
+      
+      // Ensure player exists for initial session
+      if (initialSession?.user?.email) {
+        console.log('Initial session detected, ensuring player profile exists');
+        await ensurePlayerForUser(initialSession.user.email);
+      }
+    };
+    
+    // Handle initial auth state immediately
+    handleAuthChanges();
+    
+    // Set up auth state change listener for future changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      
+      setUser(session?.user || null);
+      
+      // If user just signed in, ensure they have a player profile
+      if (event === 'SIGNED_IN' && session?.user?.email) {
+        console.log('User signed in, ensuring player profile exists');
+        await ensurePlayerForUser(session.user.email);
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Sign in with Google using direct URL construction
+  const signInWithGoogle = async () => {
+    try {
+      console.log('Starting Google OAuth flow with direct URL...');
+      
+      // First make sure we're cleared of any previous auth state
+      await supabase.auth.signOut();
+      
+      // Clear any possible localStorage values that might interfere
+      localStorage.removeItem('currentPlayerId');
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Create the proper auth URL directly pointing to Supabase
+      const redirectUrl = encodeURIComponent('http://localhost:3000'); // Per user requirement
+      const state = Math.random().toString(36).substring(2, 15); // CSRF protection
+      
+      // Properly construct the URL to the actual Supabase auth endpoint
+      const googleAuthUrl = `https://sfeckdcnlczdtvwpdxer.supabase.co/auth/v1/authorize?provider=google&redirect_to=${redirectUrl}&access_type=offline&prompt=consent&state=${state}`;
+      
+      console.log('Redirecting to Google auth URL:', googleAuthUrl);
+      
+      // Directly navigate to the Supabase auth endpoint
+      window.location.href = googleAuthUrl;
+      return;
+    } catch (error) {
+      console.error('Error starting Google sign-in:', error);
+      alert('Error signing in with Google. Please try again.');
+    }
+  };
+
+  // Sign out
+  const signOut = async () => {
+    try {
+      // First clear our custom localStorage session
+      localStorage.removeItem('supabase.auth.token');
+      console.log('Cleared localStorage session');
+      
+      // Also attempt standard Supabase signOut (may not work with localhost:3000)
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.warn('Standard Supabase signOut failed, but localStorage was cleared', e);
+      }
+      
+      // Reset state regardless of Supabase API call outcome
+      setUser(null);
+      setSession(null);
+      console.log('User signed out successfully');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  // Ensure that an authenticated user has an associated player profile
+  const ensurePlayerForUser = async (email: string | undefined) => {
+    if (!email || !user) return;
+    
+    // Log the function call
+    console.log('ensurePlayerForUser called for:', email);
+    
+    try {
+      console.log('Ensuring player exists for user:', email, 'user_id:', user.id);
+      
+      // Create a temporary client with service role key to bypass RLS
+      const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTgxNTM2NiwiZXhwIjoyMDY3MzkxMzY2fQ.a5SnwwzoQJnoZu1eYTEPX4vB7va4YYLGBYoKGJGQZRw';
+      
+      const tempClient = createClient(
+        'https://sfeckdcnlczdtvwpdxer.supabase.co',
+        serviceRoleKey
+      );
+      
+      // First check if player exists by user_id
+      if (user.id) {
+        try {
+          const { data: existingPlayer } = await tempClient
+            .from('spieler')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+            
+          if (existingPlayer) {
+            console.log('Found existing player by user_id:', existingPlayer);
+            localStorage.setItem('currentPlayerId', existingPlayer.id);
+            return;
+          }
+        } catch (error) {
+          console.log('No player found by user_id, will check by email');
+        }
+      }
+      
+      // Then check if player exists by email
+      try {
+        const { data: emailPlayer } = await tempClient
+          .from('spieler')
+          .select('*')
+          .eq('email', email)
+          .single();
+          
+        if (emailPlayer) {
+          console.log('Found existing player by email:', emailPlayer);
+          
+          // Update user_id if we have it and it's missing
+          if (user.id && !emailPlayer.user_id) {
+            await tempClient
+              .from('spieler')
+              .update({ user_id: user.id })
+              .eq('id', emailPlayer.id);
+            console.log('Updated player with user_id');
+          }
+          
+          localStorage.setItem('currentPlayerId', emailPlayer.id);
+          return;
+        }
+      } catch (error) {
+        console.log('No player found by email, will create new player');
+      }
+      
+      // Need to create a new player
+      try {
+        console.log('Creating new player for user');
+        const playerName = email.split('@')[0];
+        
+        const { data: newPlayer, error: insertError } = await tempClient
+          .from('spieler')
+          .insert({
+            name: playerName,
+            email: email,
+            user_id: user.id
+          })
+          .select()
+          .single();
+        
+        if (insertError) {
+          console.error('Failed to create player:', insertError);
+          return;
+        }
+        
+        console.log('Successfully created new player:', newPlayer);
+        localStorage.setItem('currentPlayerId', newPlayer.id);
+      } catch (createError) {
+        console.error('Error creating player:', createError);
+      }
+    } catch (error) {
+      console.error('Unexpected error in ensurePlayerForUser:', error);
+    }
+  };
+  
+  return (
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        loading,
+        signInWithGoogle,
+        signOut,
+        setUser,
+        ensurePlayerForUser
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

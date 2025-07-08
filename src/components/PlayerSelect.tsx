@@ -31,7 +31,12 @@ export const PlayerSelect: React.FC = () => {
                 key={player.id}
                 onClick={() => handleSelectPlayer(player)}
               >
-                <div className="text-xl font-medium">{player.name}</div>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-schnicken-medium rounded-full flex items-center justify-center text-white">
+                    {player.name?.substring(0, 2).toUpperCase() || '??'}
+                  </div>
+                  <div className="text-xl font-medium">{player.name}</div>
+                </div>
               </ButtonCard>
             ))
           ) : (
