@@ -12,7 +12,7 @@ export const MainMenu: React.FC = () => {
 
   return (
     <FullScreenLayout 
-      headline="Wen willst du anschnicken?"
+      headline="Wen möchtest Du anschnicken?"
       backgroundColor="bg-schnicken-darkest"
     >
       {/* User Profile Badge - Fixed Position in Top Right */}
@@ -37,7 +37,9 @@ export const MainMenu: React.FC = () => {
                   key={player.id}
                   onClick={() => {
                     console.log('Player clicked:', player.name, player.id);
-                    // Setze URL-Parameter mit der Spieler-ID und navigiere zur CreateGame-Seite
+                    
+                    // Just set URL parameter for opponent selection and navigate
+                    // We're not changing the current player, just selecting an opponent
                     window.history.pushState({}, '', `?opponentId=${player.id}`);
                     console.log('Navigating to create-game');
                     navigateTo('create-game');

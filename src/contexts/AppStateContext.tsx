@@ -2,7 +2,6 @@ import React, { createContext, useState, useContext, type ReactNode } from 'reac
 
 // Definieren der möglichen Ansichten in der App
 export type AppView = 
-  | 'player-select'  // Spielerauswahl
   | 'menu'           // Hauptmenü
   | 'create-game'    // Spiel erstellen
   | 'game'           // Aktives Spiel
@@ -17,20 +16,11 @@ interface AppStateContextType {
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
 
 export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize view based on player ID status without automatic redirects
-  const [currentView, setCurrentView] = useState<AppView>(() => {
-    const hasPlayerId = localStorage.getItem('currentPlayerId') !== null;
-    return hasPlayerId ? 'menu' : 'player-select';
-  });
+  // Always initialize to menu view since we're eliminating player-select
+  const [currentView, setCurrentView] = useState<AppView>('menu');
 
   const navigateTo = (view: AppView) => {
     console.log('navigateTo called with view:', view, 'current view:', currentView);
-    
-    // For users with player ID, never go back to player-select
-    if (view === 'player-select' && localStorage.getItem('currentPlayerId')) {
-      console.log('Preventing user with player ID from going to player-select');
-      return;
-    }
     
     console.log('Setting current view to:', view);
     setCurrentView(view);

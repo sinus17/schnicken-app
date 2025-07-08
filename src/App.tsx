@@ -13,7 +13,6 @@ import { usePlayer } from './contexts/PlayerContext'
 import { PrivateRoute } from './components/PrivateRoute'
 
 // Komponenten
-import { PlayerSelect } from './components/PlayerSelect'
 import { MainMenu } from './components/MainMenu'
 import { CreateGame } from './components/CreateGame'
 import { Game } from './components/Game'
@@ -288,8 +287,6 @@ const AppContent = () => {
   // Inhaltskomponente basierend auf der aktuellen Ansicht
   const ViewComponent = () => {
     switch (currentView) {
-      case 'player-select':
-        return <PlayerSelect />
       case 'menu':
         return <MainMenu />
       case 'create-game':
@@ -301,7 +298,7 @@ const AppContent = () => {
       case 'schnicks':
         return <AllSchnicks />
       default:
-        return <PlayerSelect />
+        return <MainMenu />
     }
   };
   
@@ -317,15 +314,16 @@ function App() {
   return (
     <AuthProvider>
       <AppStateProvider>
-        <PrivateRoute>
-          <PlayerProvider>
-            <GameProvider>
+        <PlayerProvider>
+          <GameProvider>
+            {/* PrivateRoute now inside PlayerProvider to ensure it can access player data */}
+            <PrivateRoute>
               {/* Add AutoRefreshHandler to enable automatic UI updates */}
               <AutoRefreshHandler />
               <AppContent />
-            </GameProvider>
-          </PlayerProvider>
-        </PrivateRoute>
+            </PrivateRoute>
+          </GameProvider>
+        </PlayerProvider>
       </AppStateProvider>
     </AuthProvider>
   )

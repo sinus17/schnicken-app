@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Login } from './Login';
-import { useAppState } from '../contexts/AppStateContext';
 import type { User } from '@supabase/supabase-js';
 
 type PrivateRouteProps = {
@@ -10,7 +9,6 @@ type PrivateRouteProps = {
 
 export const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const { user, loading, setUser } = useAuth();
-  const { navigateTo } = useAppState();
   const [isCheckingLocalStorage, setIsCheckingLocalStorage] = useState(true);
   
   // Check localStorage for custom auth token on component mount
@@ -42,22 +40,17 @@ export const PrivateRoute = ({ children }: PrivateRouteProps) => {
     checkLocalStorageAuth();
   }, [user, setUser]);
   
-  // When authenticated, check if navigation to player selection is needed
+  // When authenticated, automatic player association happens in player context
   useEffect(() => {
     // If user is authenticated and we're done checking localStorage
     if (user && !loading && !isCheckingLocalStorage) {
       console.log('Authenticated user detected in PrivateRoute');
       
-      // Check if we already have a player association
-      const playerId = localStorage.getItem('currentPlayerId');
-      
-      // If the user is authenticated but no player is selected, navigate to menu
-      if (!playerId && user.email) {
-        console.log('Authenticated user has no player - navigating to menu');
-        navigateTo('menu');
-      }
+      // For authenticated users, player context handles finding the player by email
+      // We don't need to redirect to menu anymore as the player will be found by email
+      // automatically in the PlayerContext
     }
-  }, [user, loading, isCheckingLocalStorage, navigateTo]);
+  }, [user, loading, isCheckingLocalStorage]);
   
   // Show loading spinner while checking auth status
   if (loading || isCheckingLocalStorage) {

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { supabaseAdmin } from '../lib/supabaseClient';
 import type { Spieler } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 
 interface PlayerContextType {
   currentPlayer: Spieler | null;
@@ -16,10 +17,62 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [currentPlayer, setCurrentPlayer] = useState<Spieler | null>(null);
   const [allPlayers, setAllPlayers] = useState<Spieler[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Function to find a player by email
+  const findPlayerByEmail = async (email: string) => {
+    if (!email) return null;
+    
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('spieler')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+        
+      if (error) {
+        console.error('Error finding player by email:', error);
+        return null;
+      }
+      
+      if (data) {
+        console.log('Found player by email:', data.name);
+        return data;
+      } else {
+        console.log('No player found for email:', email);
+        return null;
+      }
+    } catch (err) {
+      console.error('Unexpected error finding player by email:', err);
+      return null;
+    }
+  };
 
+  // Find and set player based on authenticated user
+  useEffect(() => {
+    const findPlayerForUser = async () => {
+      if (user?.email && !currentPlayer) {
+        console.log('Finding player for authenticated user email:', user.email);
+        const player = await findPlayerByEmail(user.email);
+        
+        if (player) {
+          console.log('Setting current player from user email:', player.name);
+          setCurrentPlayer(player);
+          localStorage.setItem('currentPlayerId', player.id);
+        } else {
+          console.log('No player found for user email:', user.email);
+          // If we can't find a player for this user, we could redirect to a profile creation page
+          // or handle this case based on your app's requirements
+        }
+      }
+    };
+    
+    findPlayerForUser();
+  }, [user, currentPlayer]);
+  
   useEffect(() => {
     // Load players and current player in a single operation to reduce API calls
     const loadPlayersData = async () => {

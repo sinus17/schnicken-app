@@ -1,26 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '../types/database.types';
+// Import the centralized Supabase client to avoid multiple instances
+import { supabase as supabaseClient } from './supabaseClient';
 
-// Create a proper Supabase client with the actual Supabase project URL
-// This respects the user rule of only exposing localhost:3000 to the frontend
-// by encapsulating the actual Supabase URL inside this proxy
-const supabaseUrl = 'https://sfeckdcnlczdtvwpdxer.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4MTUzNjYsImV4cCI6MjA2NzM5MTM2Nn0.rfJ8ry0C_C7sGfyw2KoU953PrqDSW9BoM2GAffoc1-8';
-
-// The actual client that will be used internally
-const supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-  global: {
-    headers: {
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseAnonKey}`
-    },
-  },
-});
+// This proxy respects the user rule of only exposing localhost:3000 to the frontend
+// by encapsulating the actual Supabase connection inside this proxy
 
 // Functions that will provide data while abstracting away the direct Supabase connection
 export const supabaseProxy = {
