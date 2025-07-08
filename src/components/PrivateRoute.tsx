@@ -9,7 +9,7 @@ type PrivateRouteProps = {
 };
 
 export const PrivateRoute = ({ children }: PrivateRouteProps) => {
-  const { user, loading, setUser, ensurePlayerForUser } = useAuth();
+  const { user, loading, setUser } = useAuth();
   const { navigateTo } = useAppState();
   const [isCheckingLocalStorage, setIsCheckingLocalStorage] = useState(true);
   
@@ -42,7 +42,7 @@ export const PrivateRoute = ({ children }: PrivateRouteProps) => {
     checkLocalStorageAuth();
   }, [user, setUser]);
   
-  // When authenticated, make sure user has a player
+  // When authenticated, check if navigation to player selection is needed
   useEffect(() => {
     // If user is authenticated and we're done checking localStorage
     if (user && !loading && !isCheckingLocalStorage) {
@@ -51,17 +51,13 @@ export const PrivateRoute = ({ children }: PrivateRouteProps) => {
       // Check if we already have a player association
       const playerId = localStorage.getItem('currentPlayerId');
       
-      // If the user is authenticated but no player is selected, try to create/assign one
+      // If the user is authenticated but no player is selected, navigate to menu
       if (!playerId && user.email) {
-        console.log('Authenticated user has no player - ensuring one exists...');
-        // Call the function to ensure a player exists for this user
-        ensurePlayerForUser(user.email);
-        
-        // Only navigate to menu if we need to create a player
+        console.log('Authenticated user has no player - navigating to menu');
         navigateTo('menu');
       }
     }
-  }, [user, loading, isCheckingLocalStorage, navigateTo, ensurePlayerForUser]);
+  }, [user, loading, isCheckingLocalStorage, navigateTo]);
   
   // Show loading spinner while checking auth status
   if (loading || isCheckingLocalStorage) {

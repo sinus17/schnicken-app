@@ -1,24 +1,15 @@
 // Re-export the Supabase client from supabaseClient.ts
+// We ensure only ONE instance of Supabase client exists throughout the app
 export { supabase, supabaseAdmin } from './supabaseClient';
-export * from './supabaseClient';
+export { 
+  ACTUAL_SUPABASE_URL,
+  supabaseAnonKey
+} from './supabaseClient';
 
-// PostgreSQL-Verbindungsdaten gemäß Anforderungen
-// Wird für direkte Datenbankinteraktionen oder Migrations-Skripte verwendet
+// Database connection string
 export const DB_CONNECTION_STRING = 'postgresql://postgres.sfeckdcnlczdtvwpdxer:datenbankpasswort@aws-0-eu-central-1.pooler.supabase.com:5432/postgres';
 
-// Beachte: Wir nutzen jetzt die echte Supabase URL für alle Operationen,
-// da es sonst zu 401-Fehlern bei der Authentifizierung kommt.
-
-// Tatsächliche Supabase URL für direkte API-Aufrufe
-export const ACTUAL_SUPABASE_URL = 'https://sfeckdcnlczdtvwpdxer.supabase.co';
-
-// Public anon key für normale Operationen
-export const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4MTUzNjYsImV4cCI6MjA2NzM5MTM2Nn0.rfJ8ry0C_C7sGfyw2KoU953PrqDSW9BoM2GAffoc1-8';
-
-// Service Role Key für erweiterte Server-Operationen
-export const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTgxNTM2NiwiZXhwIjoyMDY3MzkxMzY2fQ.a5SnwwzoQJnoZu1eYTEPX4vB7va4YYLGBYoKGJGQZRw';
-
-// Diese URL wird für Deployment verwendet
+// Deployment URL
 export const DEPLOY_URL = 'https://schnicken.netlify.app/';
 
 // Re-export types
