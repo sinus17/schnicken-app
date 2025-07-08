@@ -51,16 +51,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Sign in with Google
   const signInWithGoogle = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log('Starting Google OAuth flow...');
+      
+      // For local development with localhost:3000, we need to ensure proper redirect
+      const redirectUrl = window.location.origin;
+      console.log('Redirect URL:', redirectUrl);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
       
       if (error) {
+        console.error('OAuth error details:', error);
         throw error;
       }
+      
+      console.log('OAuth initiated successfully:', data);
+      // The OAuth flow will redirect the user away from the page at this point
     } catch (error) {
       console.error('Error signing in with Google:', error);
       alert('Error signing in with Google. Please try again.');
