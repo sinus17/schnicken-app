@@ -18,11 +18,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check for hash parameters from OAuth redirect
+    const handleAuthCallback = async () => {
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        console.log('Auth redirect detected, processing tokens...');
+        
+        try {
+          // Extract the hash parameters without the # character
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          
+          if (accessToken) {
+            // Clean up the URL by removing the hash parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Set the session with the tokens
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+            
+            if (error) {
+              console.error('Error setting session from redirect:', error);
+            } else {
+              console.log('Session set successfully from redirect');
+              setSession(data.session);
+              setUser(data.session?.user ?? null);
+            }
+          }
+        } catch (error) {
+          console.error('Error handling auth callback:', error);
+        }
+      }
+    };
+    
     // Get initial session
     const getSession = async () => {
       setLoading(true);
       
       try {
+        // Handle redirect first if present
+        await handleAuthCallback();
+        
+        // Then get current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
@@ -38,6 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, currentSession) => {
+        console.log('Auth state changed:', _event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
       }
