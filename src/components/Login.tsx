@@ -17,10 +17,7 @@ export const Login = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-schnicken-darkest">
       <div className="p-8 bg-schnicken-dark rounded-lg shadow-md w-full max-w-md border border-schnicken-medium">
-        <h1 className="text-2xl font-bold text-center mb-6 text-schnicken-light">Schnicken App</h1>
-        <p className="text-center mb-6 text-schnicken-light">
-          Bitte melde dich an, um fortzufahren
-        </p>
+        <h1 className="text-2xl font-bold text-center mb-6 text-schnicken-light">Wie viel Bock hast Du, ...?</h1>
         
         <button
           onClick={handleLogin}
