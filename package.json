@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "netlify:build": "node ./netlify-build.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && netlify deploy",
@@ -14,6 +15,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.3",
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

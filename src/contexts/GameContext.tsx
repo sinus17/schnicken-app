@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 import type { Spieler, Schnick, SchnickZahl } from '../lib/supabase';
 import { usePlayer } from './PlayerContext';
 import { sendWhatsAppMessage, WhatsAppNotifications } from '../services/WhatsAppService';
