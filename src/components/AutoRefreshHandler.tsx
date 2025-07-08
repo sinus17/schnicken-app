@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppState } from '../contexts/AppStateContext';
 import { useGame } from '../contexts/GameContext';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -9,10 +9,20 @@ import { supabase } from '../lib/supabaseClient';
  * and automatically refreshes the screen and navigates to the appropriate view
  * when action is required from the player.
  */
+// Input pages where we should not auto-refresh to avoid disturbing user input
+const INPUT_VIEWS = ['create-game', 'game', 'round1-response', 'round2-response', 'schnicker-response'];
+
 export const AutoRefreshHandler: React.FC = () => {
   const { navigateTo, currentView } = useAppState();
   const { actionRequired, actionType, resetActionNotification, refreshGames } = useGame();
   const { currentPlayer } = usePlayer();
+  const [isInputPageActive, setIsInputPageActive] = useState(false);
+  
+  // Check if current view is an input page where refresh should be disabled
+  useEffect(() => {
+    setIsInputPageActive(INPUT_VIEWS.includes(currentView));
+    console.log(`Current view: ${currentView}, input page active: ${INPUT_VIEWS.includes(currentView)}`);
+  }, [currentView]);
   
   // Set up direct subscription to schnick_zahlen table for real-time updates
   useEffect(() => {
@@ -37,8 +47,15 @@ export const AutoRefreshHandler: React.FC = () => {
             console.log('Round 2 number detected - triggering refresh');
             refreshGames();
             
+            // If user is on an input page, don't navigate away
+            if (isInputPageActive) {
+              console.log('User is on an input page, not navigating away for Round 2 result');
+              return;
+            }
+            
             // Force navigation to menu to show the result
             if (currentView !== 'menu') {
+              console.log('Navigating to menu to show Round 2 result');
               navigateTo('menu');
             }
           }
@@ -49,23 +66,32 @@ export const AutoRefreshHandler: React.FC = () => {
     return () => {
       supabase.removeChannel(zahlenChannel);
     };
-  }, [currentPlayer, currentView, navigateTo, refreshGames]);
+  }, [currentPlayer, currentView, isInputPageActive, navigateTo, refreshGames]);
   
-  // Set up an interval to periodically check for updates as a fallback
-  useEffect(() => {
-    // Refresh games every 10 seconds to ensure we have the latest data
-    const intervalId = setInterval(() => {
-      refreshGames();
-    }, 10000); // 10 seconds
-    
-    return () => clearInterval(intervalId);
-  }, [refreshGames]);
+  // No longer using auto-refresh interval to reduce performance impact
+  // Instead, we rely on real-time subscriptions and manual refresh
+  // This helps prevent multiple Supabase client instances and unnecessary re-renders
   
   // Handle action notifications
   useEffect(() => {
     if (!actionRequired || !actionType || !currentPlayer) return;
     
     console.log(`AutoRefreshHandler: Action required: ${actionType}`);
+    
+    // If user is on an input page, don't disturb them unless it's critical
+    if (isInputPageActive) {
+      console.log(`User is on an input page, not interrupting for action: ${actionType}`);
+      
+      // Only these critical actions should interrupt user input
+      const criticalActions = ['new_schnick']; 
+      if (!criticalActions.includes(actionType)) {
+        // For non-critical actions, just reset the notification without navigating
+        resetActionNotification();
+        return;
+      }
+      
+      console.log('Critical action detected, will interrupt user input');
+    }
     
     // Perform immediate refresh to ensure we have the latest data
     const handleAction = async () => {
@@ -111,7 +137,7 @@ export const AutoRefreshHandler: React.FC = () => {
     };
     
     handleAction();
-  }, [actionRequired, actionType, currentPlayer, currentView, navigateTo, resetActionNotification, refreshGames]);
+  }, [actionRequired, actionType, currentPlayer, currentView, isInputPageActive, navigateTo, resetActionNotification, refreshGames]);
   
   // This component doesn't render anything
   return null;

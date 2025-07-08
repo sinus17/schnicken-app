@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FullScreenLayout } from './layout/FullScreenLayout';
 import { FormInput } from './ui/FormInput';
 import { ActionButton } from './ui/ActionButton';
@@ -10,7 +10,7 @@ import { SchnickerRound1ResultModal } from './SchnickerRound1ResultModal';
 export const SchnickerResponse: React.FC = () => {
   console.log('RENDERING SCHNICKER RESPONSE COMPONENT');
   const { currentPlayer } = usePlayer();
-  const { activeGames, submitZahl, refreshGames } = useGame();
+  const { activeGames, submitZahl, refreshGames, actionType } = useGame();
   const { navigateTo } = useAppState();
   
   const [selectedNumber, setSelectedNumber] = useState('');
@@ -18,6 +18,18 @@ export const SchnickerResponse: React.FC = () => {
   const [selectedGameIndex, setSelectedGameIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [resultGame, setResultGame] = useState<GameWithPlayers | null>(null);
+  
+  // Force refresh games when the component mounts to ensure we have the latest data
+  // but only do this once using a ref to prevent infinite loops
+  const initialRefreshDone = useRef(false);
+  
+  useEffect(() => {
+    if (!initialRefreshDone.current) {
+      console.log('SchnickerResponse: Initial refreshGames to ensure latest data');
+      initialRefreshDone.current = true;
+      refreshGames();
+    }
+  }, [refreshGames]);
   
   // Filter für offene Spiele, bei denen der aktuelle Spieler der Schnicker ist,
   // das Spiel einen Bock-Wert hat, aber der Schnicker noch keine Zahl für Runde 1 eingegeben hat
@@ -36,7 +48,39 @@ export const SchnickerResponse: React.FC = () => {
     console.log('SchnickerResponse - Aktuelles Spiel:', currentGame);
     console.log('SchnickerResponse - Current Player:', currentPlayer);
   }, [pendingGames, currentGame, currentPlayer]);
+
+  // We'll use a ref to track navigation state to prevent multiple navigation attempts
+  const navigationAttempted = useRef(false);
   
+  useEffect(() => {
+    if (pendingGames.length === 0 && !isUpdating && !showResult && !navigationAttempted.current) {
+      console.log('SchnickerResponse: Checking if navigation is needed...');
+      
+      // Check if we were shown because of an explicit action requirement
+      // If we were, then DON'T navigate away even if no game is found
+      const isInputInProgress = selectedNumber !== '';
+      const shouldStayForAction = actionType === 'round1_input_needed' || isInputInProgress;
+      
+      if (shouldStayForAction) {
+        console.log('SchnickerResponse: Action required, staying on this screen despite no game found.');
+        // If we're staying because of an action requirement, don't keep refreshing - just once
+        if (!initialRefreshDone.current) {
+          console.log('SchnickerResponse: Refreshing games once for action requirement');
+          initialRefreshDone.current = true;
+          refreshGames();
+        }
+      } else {
+        // Set the flag before navigating to prevent multiple attempts
+        navigationAttempted.current = true;
+        console.log('SchnickerResponse: Keine passenden Spiele gefunden und keine Aktion erforderlich, navigiere zum Menü');
+        setTimeout(() => navigateTo('menu'), 100); // Small delay to prevent race conditions
+      }
+    } else if (pendingGames.length > 0) {
+      // Reset navigation flag if we have games
+      navigationAttempted.current = false;
+    }
+  }, [pendingGames, navigateTo, isUpdating, showResult, actionType, refreshGames, selectedNumber, initialRefreshDone]);
+
   if (!pendingGames.length) {
     console.log('SchnickerResponse - Keine pendingGames gefunden, Komponente wird nicht gerendert');
     return null;

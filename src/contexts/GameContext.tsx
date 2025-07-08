@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import type { Spieler, Schnick, SchnickZahl } from '../lib/supabase';
 import { usePlayer } from './PlayerContext';
 import { sendWhatsAppMessage, WhatsAppNotifications } from '../services/WhatsAppService';
@@ -17,6 +17,7 @@ export interface GameWithPlayers extends Schnick {
   angeschnickter: Spieler;
   runde1_zahlen?: SchnickZahl[];
   runde2_zahlen?: SchnickZahl[];
+  updated_at: string; // Add updated_at field from the base Schnick object
 }
 
 // Action type for notifications
@@ -81,8 +82,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
   
   // Function to handle real-time game updates with payload inspection
+  // Enhanced game update handler with better logging and reliability
   const handleGameUpdate = async (payload: any) => {
-    if (!currentPlayer || updatingGames) return;
+    if (!currentPlayer) return;
+    
+    console.log('GameContext: Received real-time update:', payload.eventType, payload.table, payload.new?.id);
+    if (updatingGames) return;
     
     try {
       // Set flag to prevent multiple concurrent updates
@@ -262,6 +267,97 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setActionType(null);
   };
 
+  // Check for actions required by the current player across all games
+  const checkForRequiredActions = (games: GameWithPlayers[]) => {
+    if (!currentPlayer) {
+      console.log('No current player to check actions for');
+      return;
+    }
+
+    // Sort games: open first, then runde1, then runde2 
+    // This ensures we prioritize the earliest action needed
+    const sortedGames = [...games].sort((a, b) => {
+      const statusOrder = { 'offen': 0, 'runde1': 1, 'runde2': 2, 'beendet': 3 };
+      return statusOrder[a.status] - statusOrder[b.status];
+    });
+
+    // Track if we've found an action to prevent unnecessary state updates
+    let actionFound = false;
+
+    // Find the first game that requires action
+    for (const game of sortedGames) {
+      // Case 1: Angeschnickter needs to enter Bock-Wert
+      // Check using both angeschnickter_id and angeschnickter.id to ensure we catch all cases
+      const isAngeschnickter = 
+        game.angeschnickter_id === currentPlayer.id || 
+        game.angeschnickter?.id === currentPlayer.id;
+      
+      if (game.status === 'offen' && isAngeschnickter && (!game.bock_wert || game.bock_wert === 0)) {
+        console.debug(`Found bock_wert input needed - Player ${currentPlayer.id} is angeschnickter for game ${game.id}`);
+        
+        // Only update state if different from current state to prevent re-renders
+        if (!actionRequired || actionType !== 'bock_input_needed') {
+          setActionRequired(true);
+          setActionType('bock_input_needed');
+        }
+        
+        actionFound = true;
+        break;
+      }
+      
+      // Case 2: Either player needs to enter Round 1 number
+      if (game.status === 'runde1') {
+        const playerInGame = 
+          game.schnicker_id === currentPlayer.id || 
+          game.angeschnickter_id === currentPlayer.id ||
+          game.schnicker?.id === currentPlayer.id || 
+          game.angeschnickter?.id === currentPlayer.id;
+          
+        const hasSubmittedR1 = game.runde1_zahlen?.some(z => z.spieler_id === currentPlayer.id);
+        
+        if (playerInGame && !hasSubmittedR1) {
+          // Only update state if different from current state
+          if (!actionRequired || actionType !== 'round1_input_needed') {
+            setActionRequired(true);
+            setActionType('round1_input_needed');
+          }
+          
+          actionFound = true;
+          break;
+        }
+      }
+      
+      // Case 3: Either player needs to enter Round 2 number
+      if (game.status === 'runde2') {
+        const playerInGame = 
+          game.schnicker_id === currentPlayer.id || 
+          game.angeschnickter_id === currentPlayer.id ||
+          game.schnicker?.id === currentPlayer.id || 
+          game.angeschnickter?.id === currentPlayer.id;
+          
+        const hasSubmittedR2 = game.runde2_zahlen?.some(z => z.spieler_id === currentPlayer.id);
+        
+        if (playerInGame && !hasSubmittedR2) {
+          // Only update state if different from current state
+          if (!actionRequired || actionType !== 'round2_input_needed') {
+            setActionRequired(true);
+            setActionType('round2_input_needed');
+          }
+          
+          actionFound = true;
+          break;
+        }
+      }
+    }
+
+    // Only reset if we didn't find any action and current state indicates an action
+    if (!actionFound && actionRequired) {
+      setActionRequired(false);
+      setActionType(null);
+    }
+  }
+  
+
   useEffect(() => {
     if (currentPlayer) {
       // Initial load of all games
@@ -416,7 +512,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const gamePlayerIds = spielerSchnicksByGame[game.id] || [];
       
       // Die ersten beiden Spieler im Spiel bestimmen
-      const spieler = gamePlayerIds.map((id: string) => playersMap[id]).filter(Boolean);
+      const spieler = gamePlayerIds.map((verknüpfung: SpielerSchnick) => playersMap[verknüpfung.spieler_id]).filter(Boolean);
       
       const runde1_zahlen = gameZahlen.filter(z => z.runde === 1);
       const runde2_zahlen = gameZahlen.filter(z => z.runde === 2);
@@ -451,6 +547,20 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCurrentGame(updatedGame);
       }
     }
+    
+    // Check for required actions after games are loaded (important for page reloads)
+    console.log('DEBUG - Checking for required actions with games:', activeGamesList.map(g => ({
+      id: g.id,
+      status: g.status,
+      schnicker_id: g.schnicker_id,
+      angeschnickter_id: g.angeschnickter_id,
+      schnicker: g.schnicker?.id,
+      angeschnickter: g.angeschnickter?.id,
+      bock_wert: g.bock_wert,
+      current_player: currentPlayer?.id
+    })));
+    
+    checkForRequiredActions(activeGamesList);
 
     setIsLoading(false);
   };

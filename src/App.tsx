@@ -23,12 +23,13 @@ import { SchnickerResponse } from './components/SchnickerResponse'
 import { Round2Response } from './components/Round2Response'
 import { Round1ResultModal } from './components/Round1ResultModal'
 import { Round1CompletedResultModal } from './components/Round1CompletedResultModal'
+// AutoRefreshHandler removed to prevent duplicate Supabase instances
 // Debug components removed from production
 
 // Wrapper Komponente, die offene Spiele prüft und entsprechende Aktionsscreens anzeigt
 const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
   // Extract all game-related hooks at the top level to avoid conditional hook errors
-  const { activeGames, finishedGames, currentGame, refreshGames } = useGame();
+  const { activeGames, finishedGames, currentGame, refreshGames, actionRequired, actionType } = useGame();
   const { currentPlayer } = usePlayer();
   const [showRound1Result, setShowRound1Result] = useState(false);
   const [round1ResultGame, setRound1ResultGame] = useState<GameWithPlayers | null>(null);
@@ -72,24 +73,12 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     }))
   });
   
-  // Spieler ist Schnicker und muss seine Zahl für Runde 1 eingeben
-  const hasPendingSchnickerResponses = activeGames?.some(game => 
-    game.schnicker.id === currentPlayer?.id && 
-    game.status === 'offen' &&
-    game.bock_wert !== null &&
-    !game.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id)
-  );
-
-  // Spieler muss eine Zahl für Runde 2 eingeben
-  const hasRound2Responses = activeGames?.some(game => 
-    game.status === 'runde2' &&
-    !game.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id)
-  );
+  // These checks are now handled by the needsRound1Input and needsRound2Input variables
+  // in the GameResponseWrapper component
   
   // Debug für Runde 2 Logik
   console.log('ROUND 2 CHECK:', { 
     currentPlayerId: currentPlayer?.id,
-    hasRound2Responses,
     currentGame: currentGame ? {
       id: currentGame.id,
       status: currentGame.status,
@@ -250,18 +239,89 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
   }
   
   // General cases when no specific game is selected or the selected game doesn't need action
-  if (hasPendingResponses) {
-    // Angeschnickter muss Bock-Wert und Zahl setzen
-    return <PendingResponse />;
-  } else if (hasPendingSchnickerResponses) {
-    // Schnicker muss seine Zahl für Runde 1 setzen
-    return <SchnickerResponse />;
-  } else if (hasRound2Responses) {
-    // Spieler muss Zahl für Runde 2 setzen
-    return <Round2Response />;
+  // This section should take priority over other checks - we handle required actions immediately
+  // We also need to check for games that need input, even if actionRequired flag isn't set
+  const needsBockInput = activeGames?.some(g => 
+    g.angeschnickter?.id === currentPlayer?.id && 
+    g.status === 'offen' && 
+    g.bock_wert === null
+  );
+  
+  const needsRound1Input = activeGames?.some(g => 
+    g.status === 'runde1' || 
+    (g.status === 'offen' && g.bock_wert !== null && 
+     !g.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id))
+  );
+  
+  const needsRound2Input = activeGames?.some(g => 
+    g.status === 'runde2' && 
+    !g.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id)
+  );
+  
+  console.log(`GameResponseWrapper: Action checks - required:${actionRequired}, type:${actionType}, bockInput:${needsBockInput}, round1:${needsRound1Input}, round2:${needsRound2Input}`);
+  
+  if (actionRequired || needsBockInput || needsRound1Input || needsRound2Input) {
+    console.log(`GameResponseWrapper: Rendering response for required action`);
+    
+    // Use React.memo and stable keys to prevent unnecessary re-renders
+    // and optimize component mounts/unmounts
+    
+    // Handle different action types based on the detection in GameContext
+    // Priority: bock_input > round1 > round2
+    if (actionType === 'bock_input_needed' || needsBockInput) {
+      // Skip other checks and immediately render PendingResponse
+      console.log('GameResponseWrapper: Rendering bock_input_needed screen');
+      return <PendingResponse key="action-bock-input" />;
+    } 
+    else if (actionType === 'round1_input_needed' || needsRound1Input) {
+      // Check if user is schnicker or angeschnickter to show appropriate screen
+      const isSchnicker = activeGames?.some(g => {
+        const statusCheck = g.status === 'runde1' || g.status === 'offen';
+        const schnickerCheck = g.schnicker?.id === currentPlayer?.id;
+        const bockWertCheck = g.bock_wert !== null;
+        const noRunde1ZahlCheck = !g.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+        
+        console.log('GameResponseWrapper: Checking isSchnicker for game', {
+          gameId: g.id,
+          currentPlayerId: currentPlayer?.id,
+          schnickerId: g.schnicker?.id,
+          statusCheck,
+          schnickerCheck,
+          bockWertCheck,
+          bockWert: g.bock_wert,
+          noRunde1ZahlCheck,
+          runde1Zahlen: g.runde1_zahlen,
+          allConditionsMet: statusCheck && schnickerCheck && bockWertCheck && noRunde1ZahlCheck
+        });
+        
+        return statusCheck && schnickerCheck && bockWertCheck && noRunde1ZahlCheck;
+      });
+      
+      console.log('GameResponseWrapper: isSchnicker result:', isSchnicker);
+      
+      if (isSchnicker) {
+        console.log('GameResponseWrapper: Rendering round1_input_needed screen for schnicker');
+        return <SchnickerResponse key="action-round1-schnicker" />;
+      } else {
+        console.log('GameResponseWrapper: Rendering round1_input_needed screen for angeschnickter');
+        return <PendingResponse key="action-round1-angeschnickter" />;
+      }
+    }
+    else if (actionType === 'round2_input_needed' || needsRound2Input) {
+      console.log('GameResponseWrapper: Rendering round2_input_needed screen');
+      return <Round2Response key="action-round2" />;
+    } else if (actionType === 'result_available') {
+      // Result screens are already handled by other code above
+      console.log('GameResponseWrapper: Skipping result_available, handled elsewhere');
+      return null;
+    }
   }
   
+  // These checks are now handled by the more robust logic above with needsBockInput, needsRound1Input, etc.
+  // We don't need fallback checks anymore as we're directly checking game state
+  
   // Ansonsten normalen Inhalt anzeigen
+  // Make sure we actually use the children prop to fix lint warning
   return <>{children}</>;
 };
 
@@ -317,6 +377,7 @@ function App() {
           <GameProvider>
             {/* PrivateRoute now inside PlayerProvider to ensure it can access player data */}
             <PrivateRoute>
+              {/* AutoRefreshHandler removed to prevent multiple Supabase clients */}
               <AppContent />
             </PrivateRoute>
           </GameProvider>
