@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase, SUPABASE_AUTH_URL } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { supabase, SUPABASE_AUTH_URL, supabaseAnonKey } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 
 type AuthContextType = {
@@ -33,18 +34,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Clean up the URL by removing the hash parameters
             window.history.replaceState({}, document.title, window.location.pathname);
             
-            // Set the session with the tokens
-            const { data, error } = await supabase.auth.setSession({
+            // Create a temporary Supabase client using the actual URL to handle auth
+            const tempClient = createClient(
+              SUPABASE_AUTH_URL, // Use the actual URL for auth
+              supabaseAnonKey
+            );
+            
+            // Set the session with the tokens using the temporary client
+            const { data, error } = await tempClient.auth.setSession({
               access_token: accessToken,
-              refresh_token: refreshToken || '',
+              refresh_token: refreshToken || ''
             });
             
             if (error) {
               console.error('Error setting session from redirect:', error);
             } else {
               console.log('Session set successfully from redirect');
+              // Get user from the session
+              const user = data.session?.user ?? null;
+              
+              // Update our local state
               setSession(data.session);
-              setUser(data.session?.user ?? null);
+              setUser(user);
+              
+              // Also set the session in our regular client
+              await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || ''
+              });
+              
+              console.log('User authenticated:', user?.email);
             }
           }
         } catch (error) {
@@ -88,23 +107,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Sign in with Google using direct URL to Supabase Auth
+  // Sign in with Google using a two-step process for our setup
   const signInWithGoogle = async () => {
     try {
-      console.log('Starting Google OAuth flow via direct URL...');
+      console.log('Starting two-step Google OAuth flow...');
       
-      // Redirect directly to Supabase Auth URL for Google login
-      // This bypasses any localhost:3000 issues
+      // Step 1: Create a custom auth URL that works with our setup
       const redirectUrl = encodeURIComponent(window.location.origin);
-      const authUrl = `${SUPABASE_AUTH_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectUrl}`;
+      const googleAuthUrl = `${SUPABASE_AUTH_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectUrl}`;
       
-      console.log('Redirecting to:', authUrl);
-      window.location.href = authUrl;
+      console.log('Redirecting to Google auth:', googleAuthUrl);
+      
+      // Step 2: Redirect the browser to the auth URL
+      // When Google auth completes, it will redirect back to our app
+      // with the auth tokens in the URL hash
+      window.location.href = googleAuthUrl;
       
       // No need to wait as we're redirecting the browser
       return;
     } catch (error) {
-      console.error('Error signing in with Google:', error);
+      console.error('Error starting Google sign-in:', error);
       alert('Error signing in with Google. Please try again.');
     }
   };
