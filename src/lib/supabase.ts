@@ -7,7 +7,14 @@ export const DB_CONNECTION_STRING = 'postgresql://postgres.sfeckdcnlczdtvwpdxer:
 
 // Für die Client-Verbindung verwenden wir einen Standard-Supabase-Client
 // Gemäß der Benutzerregel: "only use localhost:3000"
-const supabaseUrl = 'http://localhost:3000';
+
+// Die tatsächliche Supabase-Projekt-URL und lokaler Proxy
+// Für die Entwicklung verwenden wir den lokalen Proxy, der die Auth-Anfragen an die echte URL weiterleitet
+const supabaseUrl = 'http://localhost:3001';
+
+// Export für andere Module, die die echte URL benötigen (z.B. für direkte Auth-Links)
+export const SUPABASE_ACTUAL_URL = 'https://sfeckdcnlczdtvwpdxer.supabase.co';
+
 // Service-Role-Key für erweiterte Berechtigungen
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTgxNTM2NiwiZXhwIjoyMDY3MzkxMzY2fQ.a5SnwwzoQJnoZu1eYTEPX4vB7va4YYLGBYoKGJGQZRw';
 

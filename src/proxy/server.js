@@ -1,21 +1,25 @@
-// Simple proxy server to maintain localhost:3000 while connecting to Supabase
-const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
-const cors = require('cors');
+// Enhanced proxy server to maintain localhost:3000 while connecting to Supabase (including auth)
+import express from 'express';
+import { createClient } from '@supabase/supabase-js';
+import cors from 'cors';
+import axios from 'axios';
+
 const app = express();
 const PORT = 3001;
 
 // Enable CORS for frontend requests
 app.use(cors({
   origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'X-Client-Info']
 }));
 app.use(express.json());
 
-// Create Supabase client using the actual Supabase URL and key
+// Define Supabase URL and key
 const supabaseUrl = 'https://sfeckdcnlczdtvwpdxer.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWNrZGNubGN6ZHR2d3BkeGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTgxNTM2NiwiZXhwIjoyMDY3MzkxMzY2fQ.a5SnwwzoQJnoZu1eYTEPX4vB7va4YYLGBYoKGJGQZRw';
+
+// Create Supabase client
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // API endpoint to test connection
@@ -102,6 +106,59 @@ app.post('/api/create-test-game', async (req, res) => {
   }
 });
 
+// Auth proxy endpoint to handle Google OAuth flow
+app.get('/auth/v1/authorize', async (req, res) => {
+  try {
+    console.log('Auth proxy request received:', req.url);
+    const { provider, redirect_to } = req.query;
+    
+    if (provider !== 'google') {
+      return res.status(400).json({ error: 'Only Google provider is supported' });
+    }
+    
+    // Construct the actual Supabase OAuth URL
+    const supabaseAuthUrl = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect_to || 'http://localhost:3000')}`;
+    
+    console.log('Redirecting to Supabase auth URL:', supabaseAuthUrl);
+    
+    // Redirect to the actual Supabase OAuth URL
+    return res.redirect(supabaseAuthUrl);
+  } catch (error) {
+    console.error('Auth proxy error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Catch-all route for other auth endpoints
+app.all('/auth/*', async (req, res) => {
+  try {
+    const targetUrl = `${supabaseUrl}${req.url}`;
+    console.log(`Proxying ${req.method} request to: ${targetUrl}`);
+    
+    const response = await axios({
+      method: req.method,
+      url: targetUrl,
+      headers: {
+        ...req.headers,
+        host: new URL(supabaseUrl).host,
+        origin: supabaseUrl,
+      },
+      data: req.body,
+    });
+    
+    // Forward the response from Supabase
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Proxy error:', error);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`Proxy server running on http://localhost:${PORT}`);
+  console.log(`Enhanced proxy server running on http://localhost:${PORT}`);
+  console.log(`Auth endpoints available at http://localhost:${PORT}/auth/*`);
 });
