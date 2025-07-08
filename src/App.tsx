@@ -23,7 +23,6 @@ import { SchnickerResponse } from './components/SchnickerResponse'
 import { Round2Response } from './components/Round2Response'
 import { Round1ResultModal } from './components/Round1ResultModal'
 import { Round1CompletedResultModal } from './components/Round1CompletedResultModal'
-import { AutoRefreshHandler } from './components/AutoRefreshHandler'
 // Debug components removed from production
 
 // Wrapper Komponente, die offene Spiele prüft und entsprechende Aktionsscreens anzeigt
@@ -318,8 +317,6 @@ function App() {
           <GameProvider>
             {/* PrivateRoute now inside PlayerProvider to ensure it can access player data */}
             <PrivateRoute>
-              {/* Add AutoRefreshHandler to enable automatic UI updates */}
-              <AutoRefreshHandler />
               <AppContent />
             </PrivateRoute>
           </GameProvider>
