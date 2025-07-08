@@ -16,7 +16,12 @@ export const Login = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-schnicken-darkest">
-      <div className="p-8 bg-schnicken-dark rounded-lg shadow-md w-full max-w-md border border-schnicken-medium">
+      <div className="flex flex-col items-center p-8 bg-schnicken-dark rounded-lg shadow-md w-full max-w-md border border-schnicken-medium">
+        <img 
+          src="/schnicken.png" 
+          alt="Schnicken Logo" 
+          className="w-48 h-auto mb-6"
+        />
         <h1 className="text-2xl font-bold text-center mb-6 text-schnicken-light">Wie viel Bock hast Du, ...?</h1>
         
         <button
