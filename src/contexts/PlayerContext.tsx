@@ -106,6 +106,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const usePlayer = (): PlayerContextType => {
   const context = useContext(PlayerContext);
   if (context === undefined) {

@@ -1,11 +1,13 @@
 import React from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useAppState } from '../contexts/AppStateContext';
+
 import { FullScreenLayout } from './layout/FullScreenLayout';
 import { ButtonCard } from './ui/ButtonCard';
+import { UserProfile } from './UserProfile';
 
 export const MainMenu: React.FC = () => {
-  const { currentPlayer, clearCurrentPlayer, allPlayers, isLoading: playersLoading } = usePlayer();
+  const { currentPlayer, allPlayers, isLoading: playersLoading } = usePlayer();
   const { navigateTo } = useAppState();
 
   return (
@@ -16,15 +18,7 @@ export const MainMenu: React.FC = () => {
       {/* User Profile Badge - Fixed Position in Top Right */}
       <div className="fixed top-4 right-4 z-50">
         <div className="flex items-center bg-schnicken-dark px-3 py-1 rounded-full shadow-md">
-          <span className="text-schnicken-light mr-2 text-sm">{currentPlayer?.name}</span>
-          <button 
-            onClick={() => clearCurrentPlayer()}
-            className="text-schnicken-light/70 hover:text-schnicken-light"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-            </svg>
-          </button>
+          <UserProfile />
         </div>
       </div>
 

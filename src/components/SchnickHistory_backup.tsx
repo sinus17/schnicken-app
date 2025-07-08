@@ -5,7 +5,7 @@ type SchnickHistoryProps = {
   onGameSelect: (game: GameWithPlayers) => void;
 };
 
-const SchnickHistory: React.FC<SchnickHistoryProps> = (_props) => {
+const SchnickHistory: React.FC<SchnickHistoryProps> = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">

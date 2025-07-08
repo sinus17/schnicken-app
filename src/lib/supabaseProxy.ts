@@ -27,53 +27,62 @@ export const supabaseProxy = {
   // Schnicks related queries
   schnicks: {
     select: async () => {
-      return await supabaseClient.from('schnicks').select('*');
+      return await supabaseClient.from('schnicks').select('*') as any;
     },
     insert: async (data: any) => {
-      return await supabaseClient.from('schnicks').insert(data);
+      return await supabaseClient.from('schnicks').insert(data) as any;
     },
     update: async (data: any, condition: any) => {
       const { column, value } = condition;
-      return await supabaseClient.from('schnicks').update(data).eq(column, value);
+      // Implementing without chaining to avoid type instantiation issues
+      try {
+        // Use type assertion to any at every step
+        const client: any = supabaseClient;
+        const result = await client.from('schnicks').update(data).eq(column, value);
+        return result;
+      } catch (error) {
+        console.error('Error updating schnick:', error);
+        return { data: null, error };
+      }
     }
   },
   // Spieler related queries
   spieler: {
     select: async () => {
-      return await supabaseClient.from('spieler').select('*');
+      return await supabaseClient.from('spieler').select('*') as any;
     },
     insert: async (data: any) => {
-      return await supabaseClient.from('spieler').insert(data);
+      return await supabaseClient.from('spieler').insert(data) as any;
     }
   },
   // Spieler_schnicks related queries
   spieler_schnicks: {
     select: async () => {
-      return await supabaseClient.from('spieler_schnicks').select('*');
+      return await supabaseClient.from('spieler_schnicks').select('*') as any;
     },
     insert: async (data: any) => {
-      return await supabaseClient.from('spieler_schnicks').insert(data);
+      return await supabaseClient.from('spieler_schnicks').insert(data) as any;
     }
   },
   // Schnick_zahlen related queries
   schnick_zahlen: {
     select: async () => {
-      return await supabaseClient.from('schnick_zahlen').select('*');
+      return await supabaseClient.from('schnick_zahlen').select('*') as any;
     },
     insert: async (data: any) => {
-      return await supabaseClient.from('schnick_zahlen').insert(data);
+      return await supabaseClient.from('schnick_zahlen').insert(data) as any;
     }
   },
   // Export a raw query function for more complex queries
   raw: async (query: string, params: any[] = []) => {
-    return await supabaseClient.rpc('exec_sql', { sql: query, params });
+    return await supabaseClient.rpc('exec_sql', { sql: query, params }) as any;
   }
 };
 
 // Function to create a test game for debugging
 export const createTestGame = async () => {
   // 1. Create two test players if they don't exist
-  const { data: existingPlayers } = await supabaseClient.from('spieler').select('*');
+  const { data: existingPlayers } = await supabaseClient.from('spieler').select('*') as any;
   
   if (!existingPlayers || existingPlayers.length < 2) {
     const players = [

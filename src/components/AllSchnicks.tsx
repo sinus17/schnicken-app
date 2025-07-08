@@ -25,12 +25,13 @@ export const AllSchnicks: React.FC = () => {
     switch (game.status) {
       case 'offen':
         return game.bock_wert === null ? 'Bock wählen' : 'Offen';
-      case 'runde1':
+      case 'runde1': {
         // Check if current player has submitted their number
         const playerSubmitted = game.runde1_zahlen?.some((z: SchnickZahl) => 
           z.spieler_id === currentPlayer?.id
         );
         return playerSubmitted ? 'Warten' : 'Zahl wählen';
+      }
       case 'runde2':
         return 'Runde 2';
       case 'beendet':

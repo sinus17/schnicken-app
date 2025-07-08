@@ -1,15 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-type DebugResult = {
-  schnicks: any[];
-  spielerSchnicks: any[];
-  players: any[];
-  zahlen: any[];
-  error: string | null;
-  loading: boolean;
-};
-
 export const DebugDatabase = () => {
   const [debugResult, setDebugResult] = useState<any>({
     schnicks: [],
@@ -177,7 +168,7 @@ export const DebugDatabase = () => {
       
     } catch (error: any) {
       console.error('Error creating test data:', error);
-      setDebugResult(prev => ({ 
+      setDebugResult((prev: any) => ({ 
         ...prev, 
         error: `Error creating test data: ${error.message}`,
         loading: false 

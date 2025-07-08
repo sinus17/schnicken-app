@@ -49,7 +49,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             schema: 'public', 
             table: 'schnicks' 
           }, 
-          (payload) => {
+          (_payload) => {
             refreshGames();
           }
         )
@@ -63,7 +63,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             schema: 'public', 
             table: 'schnick_zahlen' 
           }, 
-          (payload) => {
+          (_payload) => {
             refreshGames();
           }
         )
@@ -189,7 +189,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const gamePlayerIds = spielerSchnicksByGame[game.id] || [];
       
       // Die ersten beiden Spieler im Spiel bestimmen
-      const spieler = gamePlayerIds.map(id => playersMap[id]).filter(Boolean);
+      const spieler = gamePlayerIds.map((id: string) => playersMap[id]).filter(Boolean);
       
       const runde1_zahlen = gameZahlen.filter(z => z.runde === 1);
       const runde2_zahlen = gameZahlen.filter(z => z.runde === 2);
@@ -423,7 +423,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return spielerZahl ? spielerZahl.zahl : null;
   };
 
-  const shouldShowNumber = (game: GameWithPlayers, spielerId: string, runde: 1 | 2): boolean => {
+  const shouldShowNumber = (game: GameWithPlayers, _spielerId: string, runde: 1 | 2): boolean => {
     // Wenn das Spiel beendet ist oder beide Zahlen für die aktuelle Runde vorliegen
     if (game.status === 'beendet') return true;
     
@@ -508,6 +508,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGame = (): GameContextType => {
   const context = useContext(GameContext);
   if (context === undefined) {

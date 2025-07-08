@@ -1,7 +1,6 @@
 import React from 'react';
 import { FullScreenLayout } from './layout/FullScreenLayout';
 import { ActionButton } from './ui/ActionButton';
-import { useAppState } from '../contexts/AppStateContext';
 
 type ResultType = 'schnicker_won' | 'angeschnickter_won' | 'eigentor' | 'no_winner';
 

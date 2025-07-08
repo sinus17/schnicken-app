@@ -52,12 +52,16 @@ export const mockApi = {
   },
   
   // Schnicks-Funktionen
-  async createSchnick(playerIds: string[]): Promise<{ data: Schnick | null, error: null | any }> {
+  async createSchnick(_playerIds: string[]): Promise<{ data: Schnick | null, error: null | any }> {
     const newSchnick: Schnick = {
       id: String(Date.now()),
       created_at: new Date().toISOString(),
-      beendet: false,
-      gewinner_id: null
+      schnicker_id: '',
+      angeschnickter_id: '',
+      aufgabe: 'Mock Aufgabe',
+      bock_wert: 0,
+      status: 'offen',
+      ergebnis: null
     };
     
     return { data: newSchnick, error: null };
@@ -67,8 +71,12 @@ export const mockApi = {
     return { data: {
       id,
       created_at: new Date().toISOString(),
-      beendet: false,
-      gewinner_id: null
+      schnicker_id: '',
+      angeschnickter_id: '',
+      aufgabe: 'Mock Aufgabe',
+      bock_wert: 0,
+      status: 'offen',
+      ergebnis: null
     }, error: null };
   },
   
@@ -77,6 +85,7 @@ export const mockApi = {
       id: String(Date.now()),
       schnick_id: schnickId,
       spieler_id: spielerId,
+      runde: 1,  // Default to round 1
       zahl,
       created_at: new Date().toISOString()
     };

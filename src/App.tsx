@@ -3,10 +3,14 @@ import React, { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 // Kontext-Provider
+import { AuthProvider } from './contexts/AuthContext'
 import { AppStateProvider, useAppState } from './contexts/AppStateContext'
 import { PlayerProvider } from './contexts/PlayerContext'
 import { GameProvider, useGame, type GameWithPlayers } from './contexts/GameContext'
 import { usePlayer } from './contexts/PlayerContext'
+
+// Auth Components
+import { PrivateRoute } from './components/PrivateRoute'
 
 // Komponenten
 import { PlayerSelect } from './components/PlayerSelect'
@@ -310,13 +314,17 @@ const AppContent = () => {
 
 function App() {
   return (
-    <AppStateProvider>
-      <PlayerProvider>
-        <GameProvider>
-          <AppContent />
-        </GameProvider>
-      </PlayerProvider>
-    </AppStateProvider>
+    <AuthProvider>
+      <PrivateRoute>
+        <AppStateProvider>
+          <PlayerProvider>
+            <GameProvider>
+              <AppContent />
+            </GameProvider>
+          </PlayerProvider>
+        </AppStateProvider>
+      </PrivateRoute>
+    </AuthProvider>
   )
 }
 
