@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 export const DebugDatabase = () => {
   const [debugResult, setDebugResult] = useState<any>({

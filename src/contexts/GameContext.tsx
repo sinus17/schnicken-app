@@ -4,6 +4,14 @@ import type { Spieler, Schnick, SchnickZahl } from '../lib/supabase';
 import { usePlayer } from './PlayerContext';
 import { sendWhatsAppMessage, WhatsAppNotifications } from '../services/WhatsAppService';
 
+// Define SpielerSchnick interface since it's missing from type exports
+interface SpielerSchnick {
+  id: string;
+  created_at: string;
+  spieler_id: string;
+  schnick_id: string;
+}
+
 export interface GameWithPlayers extends Schnick {
   schnicker: Spieler;
   angeschnickter: Spieler;
@@ -231,8 +239,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           ...data,
           schnicker: schnickerData,
           angeschnickter: angeschnickterData,
-          runde1_zahlen: zahlenData?.filter(z => z.runde === 1) || [],
-          runde2_zahlen: zahlenData?.filter(z => z.runde === 2) || []
+          runde1_zahlen: zahlenData?.filter((z: SchnickZahl) => z.runde === 1) || [],
+          runde2_zahlen: zahlenData?.filter((z: SchnickZahl) => z.runde === 2) || []
         };
         
         // Update the current game state
@@ -268,7 +276,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             schema: 'public', 
             table: 'schnicks' 
           }, 
-          (payload) => {
+          (payload: any) => {
             handleGameUpdate(payload);
           }
         )
@@ -282,7 +290,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             schema: 'public', 
             table: 'schnick_zahlen' 
           }, 
-          (payload) => {
+          (payload: any) => {
             handleGameUpdate(payload);
           }
         )
@@ -357,7 +365,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Sammle alle Spieler-IDs
     const playerIds = new Set<string>();
-    spielerSchnicks?.forEach(verknüpfung => {
+    spielerSchnicks?.forEach((verknüpfung: SpielerSchnick) => {
       playerIds.add(verknüpfung.spieler_id);
     });
 
@@ -373,19 +381,19 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    const playersMap = players?.reduce((map, player) => {
+    const playersMap = players?.reduce((map: Record<string, Spieler>, player: Spieler) => {
       map[player.id] = player;
       return map;
     }, {} as Record<string, Spieler>) || {};
     
     // Spieler für jedes Spiel zuordnen
-    const spielerSchnicksByGame = spielerSchnicks?.reduce((map, verknüpfung) => {
+    const spielerSchnicksByGame = spielerSchnicks?.reduce((map: Record<string, SpielerSchnick[]>, verknüpfung: SpielerSchnick) => {
       if (!map[verknüpfung.schnick_id]) {
         map[verknüpfung.schnick_id] = [];
       }
-      map[verknüpfung.schnick_id].push(verknüpfung.spieler_id);
+      map[verknüpfung.schnick_id].push(verknüpfung);
       return map;
-    }, {} as Record<string, string[]>) || {};
+    }, {} as Record<string, SpielerSchnick[]>);
 
     // Zahlen für die Spiele laden
     const gameIds = games.map(game => game.id);
@@ -636,7 +644,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             
             // Send WhatsApp notification for game result
             if (gameToUse.schnicker && gameToUse.angeschnickter) {
-              const round1Numbers = alleZahlen.map(z => {
+              const round1Numbers = alleZahlen.map((z: SchnickZahl) => {
                 const player = z.spieler_id === gameToUse.schnicker_id ? 
                   gameToUse.schnicker.name : gameToUse.angeschnickter.name;
                 return { player, number: z.zahl };
@@ -694,14 +702,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               .eq('schnick_id', gameToUse.id)
               .eq('runde', 1);
               
-            const round1Numbers = round1Data?.map(z => {
+            const round1Numbers = round1Data?.map((z: SchnickZahl) => {
               const player = z.spieler_id === gameToUse.schnicker_id ? 
                 gameToUse.schnicker.name : gameToUse.angeschnickter.name;
               return { player, number: z.zahl };
             }) || [];
             
             // Get Round 2 numbers
-            const round2Numbers = alleZahlen.map(z => {
+            const round2Numbers = alleZahlen.map((z: SchnickZahl) => {
               const player = z.spieler_id === gameToUse.schnicker_id ? 
                 gameToUse.schnicker.name : gameToUse.angeschnickter.name;
               return { player, number: z.zahl };
