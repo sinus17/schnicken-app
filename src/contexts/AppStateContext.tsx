@@ -6,7 +6,8 @@ export type AppView =
   | 'create-game'    // Spiel erstellen
   | 'game'           // Aktives Spiel
   | 'history'        // Spielhistorie
-  | 'schnicks';      // Alle Schnicks Übersicht
+  | 'schnicks'       // Alle Schnicks Übersicht
+  | 'leaderboard';   // Rangliste/Leaderboard
 
 interface AppStateContextType {
   currentView: AppView;

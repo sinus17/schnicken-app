@@ -18,6 +18,7 @@ import { CreateGame } from './components/CreateGame'
 import { Game } from './components/Game'
 import { History } from './components/History'
 import { AllSchnicks } from './components/AllSchnicks'
+import { Leaderboard } from './components/Leaderboard'
 import { PendingResponse } from './components/PendingResponse'
 import { SchnickerResponse } from './components/SchnickerResponse'
 import { Round2Response } from './components/Round2Response'
@@ -369,6 +370,8 @@ const AppContent = () => {
         return <History />
       case 'schnicks':
         return <AllSchnicks />
+      case 'leaderboard':
+        return <Leaderboard />
       default:
         return <MainMenu />
     }

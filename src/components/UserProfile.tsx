@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext';
 import { usePlayer } from '../contexts/PlayerContext';
+import Avatar from './Avatar';
 
 export const UserProfile = () => {
   const { user, signOut } = useAuth();
@@ -11,6 +12,11 @@ export const UserProfile = () => {
 
   return (
     <div className="flex items-center gap-3">
+      <Avatar 
+        name={currentPlayer?.name || 'User'}
+        avatarUrl={currentPlayer?.avatar_url}
+        size="small"
+      />
       <div>
         <div className="text-sm font-medium">
           {currentPlayer?.name || 'User'}

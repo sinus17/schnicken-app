@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useAppState } from '../contexts/AppStateContext';
 import { useGame } from '../contexts/GameContext';
@@ -7,18 +7,44 @@ import { FullScreenLayout } from './layout/FullScreenLayout';
 import { ButtonCard } from './ui/ButtonCard';
 import { UserProfile } from './UserProfile';
 import Avatar from './Avatar';
+import { Logo } from './common/Logo';
 
 export const MainMenu: React.FC = () => {
   const { currentPlayer, allPlayers, isLoading: playersLoading } = usePlayer();
   const { navigateTo } = useAppState();
-  const { getMVPPlayer } = useGame();
+  const { getMVPPlayer, finishedGames } = useGame();
   
   const mvpPlayerId = getMVPPlayer();
+  
+  // Sort players by their number of wins
+  const sortedPlayers = useMemo(() => {
+    // First, calculate wins for each player
+    const playerWins: Record<string, number> = {};
+    
+    // Initialize with zero wins for all players
+    allPlayers.forEach(player => {
+      playerWins[player.id] = 0;
+    });
+    
+    // Count wins from finished games
+    finishedGames.forEach(game => {
+      if (game.ergebnis === 'schnicker' && game.schnicker?.id) {
+        playerWins[game.schnicker.id] = (playerWins[game.schnicker.id] || 0) + 1;
+      } else if (game.ergebnis === 'angeschnickter' && game.angeschnickter?.id) {
+        playerWins[game.angeschnickter.id] = (playerWins[game.angeschnickter.id] || 0) + 1;
+      }
+    });
+    
+    // Filter out current player and sort the rest by wins (descending)
+    return allPlayers
+      .filter(player => player.id !== currentPlayer?.id)
+      .sort((a, b) => (playerWins[b.id] || 0) - (playerWins[a.id] || 0));
+  }, [allPlayers, currentPlayer, finishedGames]);
 
   return (
     <FullScreenLayout 
-      headline="Wen möchtest Du anschnicken?"
       backgroundColor="bg-schnicken-darkest"
+      hideLogo={true}
     >
       {/* User Profile Badge - Fixed Position in Top Right */}
       <div className="fixed top-4 right-4 z-50">
@@ -27,17 +53,24 @@ export const MainMenu: React.FC = () => {
         </div>
       </div>
 
-      {/* Spieler Auswahl */}
-      <div className="w-full max-w-sm mx-auto">
-        {playersLoading ? (
+      {/* Centered Content Container - positioned relative to viewport height */}
+      <div className="flex flex-col items-center mt-[10vh] w-full">
+        <div className="mb-6 text-center">
+          <Logo />
+        </div>
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-bold text-white mb-2">Wen möchtest Du anschnicken?</h1>
+        </div>
+        
+        {/* Spieler Auswahl */}
+        <div className="w-full max-w-sm mx-auto">
+          {playersLoading ? (
           <div className="flex justify-center my-8">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-schnicken-light"></div>
           </div>
         ) : (
           <div className="space-y-4">
-            {allPlayers
-              .filter(player => player.id !== currentPlayer?.id)
-              .map((player) => (
+            {sortedPlayers.map((player) => (
                 <ButtonCard
                   key={player.id}
                   onClick={() => {
@@ -84,6 +117,7 @@ export const MainMenu: React.FC = () => {
             <div className="text-lg font-medium text-center text-schnicken-accent">Alle Schnicks anzeigen</div>
           </ButtonCard>
         </div>
+      </div>
       </div>
 
     </FullScreenLayout>
