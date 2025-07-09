@@ -1,0 +1,39 @@
+{
+  "name": "Schnicken App",
+  "short_name": "Schnicken",
+  "description": "Die ultimative Schnicken App für deine Challenges",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#FBC404",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/schnicken-wa.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/schnicken-wa.png", 
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/schnicken-wa.png",
+      "sizes": "144x144", 
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/schnicken-wa.png",
+      "sizes": "96x96",
+      "type": "image/png", 
+      "purpose": "any"
+    }
+  ],
+  "categories": ["games", "social"],
+  "lang": "de",
+  "scope": "/"
+}

@@ -24,12 +24,26 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
   const [showResult, setShowResult] = useState(false);
   
   // Filter für Spiele mit Status "runde2", bei denen der aktuelle Spieler noch keine Zahl für Runde 2 eingegeben hat
+  // Prüfe beide Spieler-Rollen und stelle sicher, dass der Spieler teilnimmt
   const pendingGames = activeGames ? activeGames.filter(game => {
-    // Explicitly log all runde2_zahlen to debug
-    console.log('Checking game for pending status:', game.id, 'runde2_zahlen:', game.runde2_zahlen);
+    // Prüfe Spieler-Teilnahme
+    const isPlayerInGame = currentPlayer && (game.schnicker.id === currentPlayer.id || 
+                                           game.angeschnickter.id === currentPlayer.id);
+    const isStatusRunde2 = game.status === 'runde2';
+    const hasNotSubmittedNumber = !game.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
     
-    return game.status === 'runde2' &&
-      !game.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+    // Detailed debugging
+    console.log('Round2Response checking game:', {
+      id: game.id,
+      status: game.status,
+      runde2_zahlen: game.runde2_zahlen,
+      isPlayerInGame,
+      isStatusRunde2,
+      hasNotSubmittedNumber,
+      shouldShow: isPlayerInGame && isStatusRunde2 && hasNotSubmittedNumber
+    });
+    
+    return isPlayerInGame && isStatusRunde2 && hasNotSubmittedNumber;
   }) : [];
 
   // Use currentGame from context if it's in runde2 state, otherwise use from pendingGames

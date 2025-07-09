@@ -31,14 +31,27 @@ export const SchnickerResponse: React.FC = () => {
     }
   }, [refreshGames]);
   
-  // Filter für offene Spiele, bei denen der aktuelle Spieler der Schnicker ist,
+  // Filter für Spiele, bei denen der aktuelle Spieler der Schnicker ist,
   // das Spiel einen Bock-Wert hat, aber der Schnicker noch keine Zahl für Runde 1 eingegeben hat
-  const pendingGames = activeGames ? activeGames.filter(game => 
-    game.schnicker.id === currentPlayer?.id && 
-    game.status === 'offen' &&
-    game.bock_wert !== null &&
-    !game.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id)
-  ) : [];
+  // WICHTIG: Spiel kann entweder im Status 'offen' oder 'runde1' sein
+  const pendingGames = activeGames ? activeGames.filter(game => {
+    const isSchnicker = game.schnicker.id === currentPlayer?.id;
+    const hasValidStatus = game.status === 'offen' || game.status === 'runde1';
+    const hasBockWert = game.bock_wert !== null;
+    const hasNotSubmittedNumber = !game.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+    
+    console.log('SchnickerResponse checking game:', {
+      id: game.id,
+      status: game.status,
+      isSchnicker,
+      hasValidStatus,
+      hasBockWert,
+      hasNotSubmittedNumber,
+      shouldShow: isSchnicker && hasValidStatus && hasBockWert && hasNotSubmittedNumber
+    });
+    
+    return isSchnicker && hasValidStatus && hasBockWert && hasNotSubmittedNumber;
+  }) : [];
 
   const currentGame = pendingGames[selectedGameIndex];
   

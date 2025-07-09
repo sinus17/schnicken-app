@@ -78,6 +78,16 @@ export const PendingResponse: React.FC = () => {
   // Aktuelles Spiel = erstes offenes Spiel
   const localGame = openGames[0];
   
+  // Debug-Info für gefundenes Spiel
+  if (localGame) {
+    console.log('PendingResponse: Gefundenes Spiel', {
+      id: localGame.id,
+      status: localGame.status,
+      bock_wert: localGame.bock_wert,
+      runde1_zahlen: localGame.runde1_zahlen
+    });
+  }
+  
   // Stellen sicher, dass das Spiel auch im GameContext gesetzt ist
   useEffect(() => {
     if (localGame && selectGame) {
@@ -101,7 +111,12 @@ export const PendingResponse: React.FC = () => {
   
   // If player is schnicker, they don't need to enter bock value, only round 1 number
   const needsBockValue = isAngeschnickter && !hasBockWert;
-  const needsRound1Number = localGame?.status === 'runde1' && !localGame?.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+  // Spieler braucht Runde 1 Zahl, wenn:
+  // - Spiel ist in Runde 1 ODER
+  // - Spiel ist offen UND hat bereits einen Bock-Wert (dann kann Angeschnickter direkt seine Zahl eingeben)
+  // UND der Spieler hat noch keine Zahl für Runde 1 eingegeben
+  const needsRound1Number = (localGame?.status === 'runde1' || (localGame?.status === 'offen' && hasBockWert)) 
+    && !localGame?.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
 
   // Debugging-Log
   useEffect(() => {
@@ -229,6 +244,7 @@ export const PendingResponse: React.FC = () => {
 
   // Falls kein Spiel mehr da ist, nichts anzeigen
   if (!localGame) {
+    console.log('PendingResponse: Kein Spiel gefunden, zeige nichts an');
     return null;
   }
   
@@ -282,6 +298,9 @@ export const PendingResponse: React.FC = () => {
                 autoFocus
                 type="number"
               />
+              <div className="mt-1 text-xs text-gray-400">
+                Wähle eine Zahl zwischen 1 und {currentBockWert}
+              </div>
             </div>
           )}
         </div>
