@@ -41,18 +41,38 @@ export const PendingResponse: React.FC = () => {
       (game.angeschnickter_id === currentPlayer?.id) || 
       (game.angeschnickter?.id === currentPlayer?.id);
     
+    // Check if player is schnicker (might need to enter round 1 number)
+    const isSchnicker = 
+      (game.schnicker_id === currentPlayer?.id) || 
+      (game.schnicker?.id === currentPlayer?.id);
+    
+    const isPlayerInGame = isAngeschnickter || isSchnicker;
+    
+    // Check if player has submitted round 1 number
+    const hasSubmittedR1 = game.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+    
+    // Game is relevant if:
+    // 1. Player is angeschnickter and game is 'offen' (needs bock value)
+    // 2. Player is in game and game is 'runde1' and player hasn't submitted round 1 number
+    const shouldShow = 
+      (isAngeschnickter && game.status === 'offen') ||
+      (isPlayerInGame && game.status === 'runde1' && !hasSubmittedR1);
+    
     console.log('PendingResponse: Checking game', {
       gameId: game.id,
       currentPlayerId: currentPlayer?.id,
       angeschnickter_id: game.angeschnickter_id,
       angeschnickter: game.angeschnickter?.id,
       isAngeschnickter,
+      isSchnicker,
+      isPlayerInGame,
       status: game.status,
       bock_wert: game.bock_wert,
-      shouldShow: isAngeschnickter && game.status === 'offen'
+      hasSubmittedR1,
+      shouldShow
     });
     
-    return isAngeschnickter && game.status === 'offen';
+    return shouldShow;
   }) || [];
 
   // Aktuelles Spiel = erstes offenes Spiel
@@ -66,20 +86,36 @@ export const PendingResponse: React.FC = () => {
     }
   }, [localGame, selectGame]);
 
-  // Determine current step based on actual game data
+  // Determine current step based on actual game data and player role
+  const isAngeschnickter = localGame && (
+    (localGame.angeschnickter_id === currentPlayer?.id) || 
+    (localGame.angeschnickter?.id === currentPlayer?.id)
+  );
+  const isSchnicker = localGame && (
+    (localGame.schnicker_id === currentPlayer?.id) || 
+    (localGame.schnicker?.id === currentPlayer?.id)
+  );
+  
   const hasBockWert = localGame?.bock_wert !== null && localGame?.bock_wert !== undefined;
   const currentBockWert = localGame?.bock_wert;
+  
+  // If player is schnicker, they don't need to enter bock value, only round 1 number
+  const needsBockValue = isAngeschnickter && !hasBockWert;
+  const needsRound1Number = localGame?.status === 'runde1' && !localGame?.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
 
   // Debugging-Log
   useEffect(() => {
     console.log('--- PendingResponse Status ---');
     console.log('Offene Spiele:', openGames.length);
     console.log('Aktuelles Spiel:', localGame?.id || 'keins');
+    console.log('Spieler Rolle:', { isAngeschnickter, isSchnicker });
     console.log('Bock-Wert aus DB:', currentBockWert);
     console.log('Hat Bock-Wert:', hasBockWert);
+    console.log('Braucht Bock-Wert:', needsBockValue);
+    console.log('Braucht Runde 1 Zahl:', needsRound1Number);
     console.log('Eingabe Bock-Wert:', bockWert);
     console.log('Eingabe Zahl:', selectedNumber);
-  }, [openGames, localGame, currentBockWert, hasBockWert, bockWert, selectedNumber]);
+  }, [openGames, localGame, currentBockWert, hasBockWert, needsBockValue, needsRound1Number, bockWert, selectedNumber, isAngeschnickter, isSchnicker]);
 
   // Force refresh games when the component mounts to ensure we have the latest data
   // but only do this once using a ref to prevent infinite loops
@@ -137,8 +173,8 @@ export const PendingResponse: React.FC = () => {
     setIsUpdating(true);
 
     try {
-      // Erster Schritt: Bock-Wert speichern
-      if (!hasBockWert) {
+      // Erster Schritt: Bock-Wert speichern (nur für Angeschnickter)
+      if (needsBockValue) {
         const parsedBockWert = parseInt(bockWert);
         if (isNaN(parsedBockWert) || parsedBockWert < 1) return;
 
@@ -155,8 +191,8 @@ export const PendingResponse: React.FC = () => {
           }, 300);
         }
       } 
-      // Zweiter Schritt: Zahl für Runde 1 einreichen
-      else {
+      // Zweiter Schritt: Zahl für Runde 1 einreichen (für beide Spieler)
+      else if (needsRound1Number) {
         const parsedNumber = parseInt(selectedNumber);
         if (isNaN(parsedNumber) || parsedNumber < 1 || parsedNumber > currentBockWert!) return;
 
@@ -212,7 +248,7 @@ export const PendingResponse: React.FC = () => {
   }
 
   // Dynamische Überschrift je nach aktuellem Schritt
-  const headline = !hasBockWert
+  const headline = needsBockValue
     ? <>
         {currentPlayer?.name}, wie viel Bock hast Du, <span style={{ color: '#ffbb00' }}>{localGame.aufgabe}</span>?
       </>
@@ -225,8 +261,8 @@ export const PendingResponse: React.FC = () => {
     >
       <div className="w-full max-w-sm space-y-6 flex flex-col items-center">
         <div className="space-y-4">
-          {/* Bock-Wert Eingabe - nur anzeigen wenn noch nicht gespeichert */}
-          {!hasBockWert && (
+          {/* Bock-Wert Eingabe - nur für Angeschnickter und nur wenn noch nicht gespeichert */}
+          {needsBockValue && (
             <FormInput
               value={bockWert}
               onChange={(value) => setBockWert(value)}
@@ -236,8 +272,8 @@ export const PendingResponse: React.FC = () => {
             />
           )}
           
-          {/* Zahlen-Eingabe für Runde 1 - immer anzeigen, aber nur wenn Bock-Wert gesetzt ist aktivieren */}
-          {hasBockWert && currentBockWert && (
+          {/* Zahlen-Eingabe für Runde 1 - nur wenn Spieler eine Zahl eingeben muss */}
+          {needsRound1Number && currentBockWert && (
             <div className="flex flex-col">
               <FormInput
                 value={selectedNumber}
@@ -252,10 +288,10 @@ export const PendingResponse: React.FC = () => {
         
         <div className="space-y-4">
           <ActionButton
-            disabled={isUpdating || (!hasBockWert ? !bockWert : !selectedNumber)}
+            disabled={isUpdating || (needsBockValue ? !bockWert : !selectedNumber)}
             onClick={handleSubmit}
           >
-            {!hasBockWert ? 'Antworten' : 'Zahl einreichen'}
+            {needsBockValue ? 'Antworten' : 'Zahl einreichen'}
           </ActionButton>
           
 

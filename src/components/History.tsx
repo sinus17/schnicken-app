@@ -13,8 +13,8 @@ export const History: React.FC = () => {
       <div className="container max-w-md mx-auto p-4">
         <div className="card">
           <p className="text-center py-4">Kein Spieler ausgewählt.</p>
-          <button onClick={() => navigateTo('player-select')} className="btn btn-primary w-full">
-            Zur Spielerauswahl
+          <button onClick={() => navigateTo('menu')} className="btn btn-primary w-full">
+            Zum Hauptmenü
           </button>
         </div>
       </div>
@@ -52,20 +52,33 @@ export const History: React.FC = () => {
           <div className="space-y-3">
             {finishedGames.map((game) => {
               const isSchnicker = currentPlayer.id === game.schnicker_id;
-              const opponent = isSchnicker ? game.angeschnickter : game.schnicker;
+              const isAngeschnickter = currentPlayer.id === game.angeschnickter_id;
+              const isInvolved = isSchnicker || isAngeschnickter;
               
               let resultClass = '';
-              if (
-                (isSchnicker && game.ergebnis === 'angeschnickter') ||
-                (!isSchnicker && game.ergebnis === 'schnicker')
-              ) {
-                resultClass = 'border-green-500';
-              } else if (
-                (isSchnicker && game.ergebnis === 'schnicker') ||
-                (!isSchnicker && game.ergebnis === 'angeschnickter')
-              ) {
-                resultClass = 'border-red-500';
+              let displayText = '';
+              
+              if (isInvolved) {
+                // Current player is involved in this game
+                const opponent = isSchnicker ? game.angeschnickter : game.schnicker;
+                displayText = isSchnicker ? `vs. ${opponent.name} (geschnickt)` : `vs. ${opponent.name} (Schnicker)`;
+                
+                if (
+                  (isSchnicker && game.ergebnis === 'angeschnickter') ||
+                  (!isSchnicker && game.ergebnis === 'schnicker')
+                ) {
+                  resultClass = 'border-green-500';
+                } else if (
+                  (isSchnicker && game.ergebnis === 'schnicker') ||
+                  (!isSchnicker && game.ergebnis === 'angeschnickter')
+                ) {
+                  resultClass = 'border-red-500';
+                } else {
+                  resultClass = 'border-gray-300';
+                }
               } else {
+                // Current player is not involved - show the game between other players
+                displayText = `${game.schnicker.name} vs. ${game.angeschnickter.name}`;
                 resultClass = 'border-gray-300';
               }
               
@@ -73,12 +86,12 @@ export const History: React.FC = () => {
                 <div 
                   key={game.id}
                   onClick={() => handleViewGame(game)}
-                  className={`card border-l-4 ${resultClass} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750`}
+                  className={`card border-l-4 ${resultClass} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 ${!isInvolved ? 'opacity-75' : ''}`}
                 >
                   <div className="flex justify-between">
                     <div>
                       <div className="font-medium">
-                        {isSchnicker ? `vs. ${opponent.name} (geschnickt)` : `vs. ${opponent.name} (Schnicker)`}
+                        {displayText}
                       </div>
                       <div className="text-sm text-gray-500 truncate max-w-[200px]">
                         {game.aufgabe}

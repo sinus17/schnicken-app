@@ -1,14 +1,19 @@
 import React from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useAppState } from '../contexts/AppStateContext';
+import { useGame } from '../contexts/GameContext';
 
 import { FullScreenLayout } from './layout/FullScreenLayout';
 import { ButtonCard } from './ui/ButtonCard';
 import { UserProfile } from './UserProfile';
+import Avatar from './Avatar';
 
 export const MainMenu: React.FC = () => {
   const { currentPlayer, allPlayers, isLoading: playersLoading } = usePlayer();
   const { navigateTo } = useAppState();
+  const { getMVPPlayer } = useGame();
+  
+  const mvpPlayerId = getMVPPlayer();
 
   return (
     <FullScreenLayout 
@@ -46,11 +51,22 @@ export const MainMenu: React.FC = () => {
                     console.log('Navigation called');
                   }}
                 >
-                  <div className="flex items-center gap-4 justify-center w-full">
-                    <div className="w-12 h-12 bg-schnicken-medium rounded-full flex items-center justify-center text-white">
-                      {player.name?.substring(0, 2).toUpperCase() || '??'}
+                  <div className="relative">
+                    {/* MVP tag - centered between edge and avatar */}
+                    {mvpPlayerId === player.id && (
+                      <div className="absolute left-1/4 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#FBC404] text-black text-xs font-bold px-2 py-1 rounded-full">
+                        MVP
+                      </div>
+                    )}
+                    {/* Avatar and name - identical for all players */}
+                    <div className="flex items-center gap-4 justify-center w-full">
+                      <Avatar
+                        name={player.name}
+                        avatarUrl={player.avatar_url}
+                        size="large"
+                      />
+                      <div className="text-xl font-medium">{player.name}</div>
                     </div>
-                    <div className="text-xl font-medium">{player.name}</div>
                   </div>
                 </ButtonCard>
               ))

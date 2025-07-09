@@ -3,6 +3,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { useAppState } from '../contexts/AppStateContext';
 import { FullScreenLayout } from './layout/FullScreenLayout';
 import { ButtonCard } from './ui/ButtonCard';
+import Avatar from './Avatar';
 
 export const PlayerSelect: React.FC = () => {
   const { allPlayers, selectPlayer, isLoading } = usePlayer();
@@ -32,9 +33,11 @@ export const PlayerSelect: React.FC = () => {
                 onClick={() => handleSelectPlayer(player)}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-schnicken-medium rounded-full flex items-center justify-center text-white">
-                    {player.name?.substring(0, 2).toUpperCase() || '??'}
-                  </div>
+                  <Avatar
+                    name={player.name}
+                    avatarUrl={player.avatar_url}
+                    size="medium"
+                  />
                   <div className="text-xl font-medium">{player.name}</div>
                 </div>
               </ButtonCard>

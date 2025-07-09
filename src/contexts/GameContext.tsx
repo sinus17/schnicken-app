@@ -48,6 +48,8 @@ interface GameContextType {
   actionRequired: boolean;
   actionType: ActionNotificationType;
   resetActionNotification: () => void;
+  // MVP functionality
+  getMVPPlayer: () => string | null;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -404,34 +406,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     setIsLoading(true);
 
-    // Spiele laden, an denen der aktuelle Spieler beteiligt ist
-    const { data: userGames, error: userGamesError } = await supabase
-      .from('spieler_schnicks')
-      .select('schnick_id')
-      .eq('spieler_id', currentPlayer.id);
-
-    if (userGamesError) {
-      console.error('Fehler beim Laden der Spielerverknüpfungen:', userGamesError);
-      setIsLoading(false);
-      return;
-    }
-    
-    if (!userGames || userGames.length === 0) {
-      // Keine Spiele gefunden
-      setActiveGames([]);
-      setFinishedGames([]);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Extrahiere die Spiel-IDs
-    const schnickIds = userGames.map(game => game.schnick_id);
-    
-    // Lade die vollständigen Spieldaten
+    // Lade ALLE Spiele für alle Spieler (nicht nur die des aktuellen Spielers)
     const { data: games, error } = await supabase
       .from('schnicks')
       .select('*')
-      .in('id', schnickIds);
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Fehler beim Laden der Spiele:', error);
@@ -447,7 +426,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
     
-    // Lade alle Spieler-Spiel Verknüpfungen
+    // Lade alle Spieler-Spiel Verknüpfungen für alle Spiele
     const { data: spielerSchnicks, error: verknüpfungsError } = await supabase
       .from('spieler_schnicks')
       .select('*')
@@ -549,7 +528,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     // Check for required actions after games are loaded (important for page reloads)
-    console.log('DEBUG - Checking for required actions with games:', activeGamesList.map(g => ({
+    // Filter to only games where the current player is involved
+    const currentPlayerGames = activeGamesList.filter(game => 
+      game.schnicker_id === currentPlayer.id || 
+      game.angeschnickter_id === currentPlayer.id ||
+      game.schnicker?.id === currentPlayer.id || 
+      game.angeschnickter?.id === currentPlayer.id
+    );
+    
+    console.log('DEBUG - Checking for required actions with games:', currentPlayerGames.map(g => ({
       id: g.id,
       status: g.status,
       schnicker_id: g.schnicker_id,
@@ -560,7 +547,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       current_player: currentPlayer?.id
     })));
     
-    checkForRequiredActions(activeGamesList);
+    checkForRequiredActions(currentPlayerGames);
 
     setIsLoading(false);
   };
@@ -737,13 +724,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.log('submitZahl: Vergleiche Zahlen', { zahl1, zahl2 });
           
           if (zahl1.zahl === zahl2.zahl) {
-            // Sofortiger Gewinn für den Schnicker (gleiche Zahlen = Schnicker gewinnt)
-            console.log('submitZahl: Gleiche Zahlen - Gewinn für Schnicker');
+            // Sofortiger Gewinn für den Schnicker (gleiche Zahlen = Angeschnickter verliert)
+            console.log('submitZahl: Gleiche Zahlen - Angeschnickter verliert, Schnicker gewinnt');
             await supabase
               .from('schnicks')
               .update({
                 status: 'beendet',
-                ergebnis: 'schnicker_won'
+                ergebnis: 'schnicker'
               })
               .eq('id', gameToUse.id);
               
@@ -788,8 +775,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           let ergebnis: 'schnicker' | 'angeschnickter' | 'unentschieden' = 'unentschieden';
           
           if (zahl1.zahl === zahl2.zahl) {
-            // Gleiche Zahlen in Runde 2 = Eigentor (Schnicker verliert)
-            ergebnis = 'schnicker';
+            // Gleiche Zahlen in Runde 2 = Eigentor (Schnicker verliert, Angeschnickter gewinnt)
+            ergebnis = 'angeschnickter';
           } else {
             // Unterschiedliche Zahlen = Unentschieden
             ergebnis = 'unentschieden';
@@ -924,9 +911,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     switch (game.ergebnis) {
       case 'schnicker':
-        return `${game.schnicker.name} muss die Aufgabe erfüllen`;
-      case 'angeschnickter':
         return `${game.angeschnickter.name} muss die Aufgabe erfüllen`;
+      case 'angeschnickter':
+        return `${game.schnicker.name} muss die Aufgabe erfüllen`;
       case 'unentschieden':
         return 'Unentschieden - niemand muss die Aufgabe erfüllen';
       default:
@@ -967,6 +954,40 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return '';
   };
 
+  // Calculate MVP (player with most wins)
+  const getMVPPlayer = (): string | null => {
+    const playerWins: { [playerId: string]: { name: string; wins: number } } = {};
+    
+    finishedGames.forEach(game => {
+      if (game.ergebnis === 'schnicker' && game.schnicker?.id) {
+        // Schnicker won
+        if (!playerWins[game.schnicker.id]) {
+          playerWins[game.schnicker.id] = { name: game.schnicker.name, wins: 0 };
+        }
+        playerWins[game.schnicker.id].wins++;
+      } else if (game.ergebnis === 'angeschnickter' && game.angeschnickter?.id) {
+        // Angeschnickter won
+        if (!playerWins[game.angeschnickter.id]) {
+          playerWins[game.angeschnickter.id] = { name: game.angeschnickter.name, wins: 0 };
+        }
+        playerWins[game.angeschnickter.id].wins++;
+      }
+    });
+    
+    // Find player with most wins
+    let mvpId: string | null = null;
+    let maxWins = 0;
+    
+    Object.entries(playerWins).forEach(([playerId, data]) => {
+      if (data.wins > maxWins) {
+        maxWins = data.wins;
+        mvpId = playerId;
+      }
+    });
+    
+    return mvpId;
+  };
+
   return (
     <GameContext.Provider
       value={{
@@ -987,7 +1008,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Action notification state
         actionRequired,
         actionType,
-        resetActionNotification
+        resetActionNotification,
+        // MVP functionality
+        getMVPPlayer
       }}
     >
       {children}

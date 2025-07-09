@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useGame } from '../contexts/GameContext';
 import { useAppState } from '../contexts/AppStateContext';
+import Avatar from './Avatar';
 
 export const Game: React.FC = () => {
   const { currentPlayer } = usePlayer();
@@ -121,7 +122,7 @@ export const Game: React.FC = () => {
           <div className="flex justify-between mt-3">
             <div className="text-sm">
               <span className="text-schnicken-light/70">Bock-Wert:</span> 
-              <span className="ml-1 font-medium text-schnicken-light">{currentGame.bock_wert || '-'} Stunden</span>
+              <span className="ml-1 font-medium text-schnicken-light">{currentGame.bock_wert || '-'}</span>
             </div>
             <div className="text-sm">
               <span className="text-schnicken-light/70">Status:</span>
@@ -137,9 +138,11 @@ export const Game: React.FC = () => {
         {/* Players */}
         <div className="mb-4 flex items-center justify-between p-3 bg-schnicken-dark/80 rounded-lg border border-schnicken-medium/30">
           <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-schnicken-medium/60 flex items-center justify-center text-schnicken-light font-bold">
-              {currentGame.schnicker.name.charAt(0)}
-            </div>
+            <Avatar
+              name={currentGame.schnicker.name}
+              avatarUrl={currentGame.schnicker.avatar_url}
+              size="medium"
+            />
             <div className="ml-3">
               <div className="font-medium text-schnicken-light">{currentGame.schnicker.name}</div>
               <div className="text-xs text-schnicken-light/70">Schnicker</div>
@@ -157,9 +160,11 @@ export const Game: React.FC = () => {
               <div className="font-medium text-schnicken-light">{currentGame.angeschnickter.name}</div>
               <div className="text-xs text-schnicken-light/70">Angeschnickter</div>
             </div>
-            <div className="h-10 w-10 rounded-full bg-schnicken-medium/60 flex items-center justify-center text-schnicken-light font-bold">
-              {currentGame.angeschnickter.name.charAt(0)}
-            </div>
+            <Avatar
+              name={currentGame.angeschnickter.name}
+              avatarUrl={currentGame.angeschnickter.avatar_url}
+              size="medium"
+            />
           </div>
         </div>
 
@@ -198,7 +203,7 @@ export const Game: React.FC = () => {
                 <div className="text-sm">
                   <div className="font-medium mb-1 text-schnicken-light">Spiel beendet</div>
                   <div className="bg-schnicken-dark/70 p-3 rounded-lg border border-schnicken-medium/20">
-                    <div className="mb-2 text-schnicken-light">{currentGame.bock_wert} Stunden gesetzt</div>
+                    <div className="mb-2 text-schnicken-light">{currentGame.bock_wert} gesetzt</div>
                   </div>
                 </div>
               </div>

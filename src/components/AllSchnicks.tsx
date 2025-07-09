@@ -179,8 +179,8 @@ export const AllSchnicks: React.FC = () => {
                     {game.status === 'beendet' && game.ergebnis && (
                       <div className="text-schnicken-light/70 text-sm">
                         <span className="font-medium">Ergebnis:</span> {
-                          game.ergebnis === 'schnicker' ? `${game.schnicker?.name} muss die Aufgabe erfüllen` :
-                          game.ergebnis === 'angeschnickter' ? `${game.angeschnickter?.name} muss die Aufgabe erfüllen` :
+                          game.ergebnis === 'schnicker' ? `${game.angeschnickter?.name} muss die Aufgabe erfüllen` :
+                          game.ergebnis === 'angeschnickter' ? `${game.schnicker?.name} muss die Aufgabe erfüllen` :
                           'Unentschieden'
                         }
                       </div>

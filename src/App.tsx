@@ -247,11 +247,20 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     g.bock_wert === null
   );
   
-  const needsRound1Input = activeGames?.some(g => 
-    g.status === 'runde1' || 
-    (g.status === 'offen' && g.bock_wert !== null && 
-     !g.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id))
-  );
+  const needsRound1Input = activeGames?.some(g => {
+    // Check if this game needs round1 input from the current player
+    const isPlayerInGame = g.schnicker?.id === currentPlayer?.id || g.angeschnickter?.id === currentPlayer?.id;
+    
+    if (!isPlayerInGame) return false;
+    
+    // Case 1: Game is in runde1 status and player hasn't submitted round1 number
+    const inRunde1 = g.status === 'runde1' && !g.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+    
+    // Case 2: Game is in offen status, bock_wert is set, and player hasn't submitted round1 number
+    const inOffenWithBock = g.status === 'offen' && g.bock_wert !== null && !g.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+    
+    return inRunde1 || inOffenWithBock;
+  });
   
   const needsRound2Input = activeGames?.some(g => 
     g.status === 'runde2' && 
@@ -276,25 +285,29 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     else if (actionType === 'round1_input_needed' || needsRound1Input) {
       // Check if user is schnicker or angeschnickter to show appropriate screen
       const isSchnicker = activeGames?.some(g => {
-        const statusCheck = g.status === 'runde1' || g.status === 'offen';
         const schnickerCheck = g.schnicker?.id === currentPlayer?.id;
-        const bockWertCheck = g.bock_wert !== null;
         const noRunde1ZahlCheck = !g.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+        
+        // For games in 'runde1' status, bock_wert should be set
+        // For games in 'offen' status, bock_wert might still be null
+        const statusAndBockCheck = 
+          (g.status === 'runde1') ||  // Games in runde1 status are ready for schnicker input
+          (g.status === 'offen' && g.bock_wert !== null);  // Games in offen with bock_wert set
         
         console.log('GameResponseWrapper: Checking isSchnicker for game', {
           gameId: g.id,
           currentPlayerId: currentPlayer?.id,
           schnickerId: g.schnicker?.id,
-          statusCheck,
+          status: g.status,
           schnickerCheck,
-          bockWertCheck,
+          statusAndBockCheck,
           bockWert: g.bock_wert,
           noRunde1ZahlCheck,
           runde1Zahlen: g.runde1_zahlen,
-          allConditionsMet: statusCheck && schnickerCheck && bockWertCheck && noRunde1ZahlCheck
+          allConditionsMet: schnickerCheck && statusAndBockCheck && noRunde1ZahlCheck
         });
         
-        return statusCheck && schnickerCheck && bockWertCheck && noRunde1ZahlCheck;
+        return schnickerCheck && statusAndBockCheck && noRunde1ZahlCheck;
       });
       
       console.log('GameResponseWrapper: isSchnicker result:', isSchnicker);
