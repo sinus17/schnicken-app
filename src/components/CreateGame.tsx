@@ -79,7 +79,16 @@ export const CreateGame: React.FC = () => {
           <div className="space-y-6 w-full max-w-sm mx-auto flex flex-col items-center">
             <FormInput
               value={aufgabe}
-              onChange={(value) => setAufgabe(value)}
+              onChange={(value) => {
+                // Entferne führende Wiederholung des Headlines wie "Leo, wie viel Bock hast du..."
+                // damit der User direkt mit der Aufgabe weitermachen kann.
+                const opponentName = selectedOpponent?.name ?? '';
+                const stripPattern = new RegExp(
+                  `^\\s*(${opponentName ? `${opponentName}\\s*,?\\s*` : ''})?wie\\s*viel\\s+bock\\s+hast\\s+du\\s*[.?…]*\\s*`,
+                  'i'
+                );
+                setAufgabe(value.replace(stripPattern, ''));
+              }}
               placeholder="Aufgabe eingeben..."
               autoFocus
             />
