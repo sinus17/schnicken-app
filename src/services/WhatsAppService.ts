@@ -126,16 +126,16 @@ export const WhatsAppNotifications = {
     
     switch(resultType) {
       case 'schnicker_won':
+      case 'schnicker':
+        // Runde 1: gleiche Zahlen → Schnicker gewinnt, Angeschnickter muss Aufgabe erfüllen
         resultMessage = `${schnicker} hat gewonnen! ${angeschnickter} muss die Aufgabe erfüllen.`;
         winner = schnicker;
         loser = angeschnickter;
         break;
       case 'angeschnickter_won':
-        resultMessage = `${angeschnickter} hat gewonnen! Keine Aufgabe wird erfüllt.`;
-        winner = angeschnickter;
-        break;
+      case 'angeschnickter':
       case 'eigentor':
-      case 'schnicker':
+        // Runde 2: gleiche Zahlen → Eigentor, Schnicker muss eigene Aufgabe erfüllen
         resultMessage = `Eigentor! ${schnicker} muss die eigene Aufgabe erfüllen.`;
         winner = angeschnickter;
         loser = schnicker;
