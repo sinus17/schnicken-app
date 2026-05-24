@@ -18,7 +18,7 @@ export const UserProfile = () => {
         size="small"
       />
       <div>
-        <div className="text-sm font-medium">
+        <div className="text-sm font-medium text-white">
           {currentPlayer?.name || 'User'}
         </div>
         <button 
