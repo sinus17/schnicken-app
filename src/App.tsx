@@ -263,10 +263,15 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     return inRunde1 || inOffenWithBock;
   });
   
-  const needsRound2Input = activeGames?.some(g => 
-    g.status === 'runde2' && 
-    !g.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id)
-  );
+  const needsRound2Input = activeGames?.some(g => {
+    // Check if this game needs round2 input from the current player
+    const isPlayerInGame = g.schnicker?.id === currentPlayer?.id || g.angeschnickter?.id === currentPlayer?.id;
+
+    if (!isPlayerInGame) return false;
+
+    return g.status === 'runde2' &&
+      !g.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
+  });
   
   console.log(`GameResponseWrapper: Action checks - required:${actionRequired}, type:${actionType}, bockInput:${needsBockInput}, round1:${needsRound1Input}, round2:${needsRound2Input}`);
   
