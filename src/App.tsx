@@ -49,49 +49,9 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     )
   );
   
-  console.log('PENDING RESPONSE CHECK:', activeGames?.map(game => ({
-    id: game.id,
-    angeschnickter: game.angeschnickter.id === currentPlayer?.id,
-    status: game.status,
-    bock_wert: game.bock_wert,
-    hat_zahl: game.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id),
-    zeige_component: game.angeschnickter.id === currentPlayer?.id && 
-                    game.status === 'offen' && 
-                    (game.bock_wert === null || 
-                    (game.bock_wert !== null && !game.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id)))
-  })));
-  
-  console.log('DEBUG ROUTING:', { 
-    currentPlayerId: currentPlayer?.id,
-    isAngeschnickter: activeGames?.some(g => g.angeschnickter.id === currentPlayer?.id),
-    isSchnicker: activeGames?.some(g => g.schnicker.id === currentPlayer?.id),
-    hasPendingResponses,
-    games: activeGames?.map(g => ({ 
-      id: g.id, 
-      angeschnickter: g.angeschnickter.id, 
-      schnicker: g.schnicker.id,
-      status: g.status,
-      bock_wert: g.bock_wert
-    }))
-  });
-  
-  // These checks are now handled by the needsRound1Input and needsRound2Input variables
-  // in the GameResponseWrapper component
-  
-  // Debug für Runde 2 Logik
-  console.log('ROUND 2 CHECK:', { 
-    currentPlayerId: currentPlayer?.id,
-    currentGame: currentGame ? {
-      id: currentGame.id,
-      status: currentGame.status,
-      runde2_zahlen: currentGame.runde2_zahlen
-    } : null,
-    games: activeGames?.map(g => ({ 
-      id: g.id, 
-      status: g.status,
-      shouldShow: g.status === 'runde2' && !g.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id)
-    }))
-  });
+  // Debug-Logs (PENDING RESPONSE CHECK / DEBUG ROUTING / ROUND 2 CHECK) entfernt,
+  // da sie bei jedem Render gefeuert haben und die Konsole geflutet haben.
+  void hasPendingResponses;
 
   // Prüfen, ob der Schnick sich umgedreht hat (Zahlen in Runde 1 unterschiedlich)
   const hasRound1ResultsToShow = activeGames?.some(game => 
@@ -207,25 +167,10 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     currentGame.angeschnickter?.id === currentPlayer.id
   );
   if (currentGame && currentGame.status !== 'beendet' && currentGameInvolvesPlayer) {
-    console.log('Selected game details:', {
-      id: currentGame.id,
-      status: currentGame.status,
-      isAngeschnickter: currentGame.angeschnickter.id === currentPlayer?.id,
-      isSchnicker: currentGame.schnicker.id === currentPlayer?.id,
-      bock_wert: currentGame.bock_wert,
-      runde1_zahlen: currentGame.runde1_zahlen,
-      runde2_zahlen: currentGame.runde2_zahlen,
-    });
-
     // Priority check for Round 2 responses first
     if (currentGame.status === 'runde2' &&
         currentPlayer &&
         !currentGame.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id)) {
-      console.log('Showing Round2Response for game:', currentGame.id);
-      console.log('Round2 condition check:', {
-        status: currentGame.status === 'runde2',
-        playerHasResponse: currentGame.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id)
-      });
       return <Round2Response forceShow={true} />;
     }
     
@@ -292,10 +237,7 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
       !g.runde2_zahlen?.some(z => z.spieler_id === currentPlayer?.id);
   });
   
-  console.log(`GameResponseWrapper: Action checks - required:${actionRequired}, type:${actionType}, bockInput:${needsBockInput}, round1:${needsRound1Input}, round2:${needsRound2Input}`);
-  
   if (actionRequired || needsBockInput || needsRound1Input || needsRound2Input) {
-    console.log(`GameResponseWrapper: Rendering response for required action`);
     
     // Use React.memo and stable keys to prevent unnecessary re-renders
     // and optimize component mounts/unmounts
@@ -304,7 +246,6 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     // Priority: bock_input > round1 > round2
     if (actionType === 'bock_input_needed' || needsBockInput) {
       // Skip other checks and immediately render PendingResponse
-      console.log('GameResponseWrapper: Rendering bock_input_needed screen');
       return <PendingResponse key="action-bock-input" />;
     } 
     else if (actionType === 'round1_input_needed' || needsRound1Input) {
@@ -318,35 +259,16 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
         const statusAndBockCheck = 
           (g.status === 'runde1') ||  // Games in runde1 status are ready for schnicker input
           (g.status === 'offen' && g.bock_wert !== null);  // Games in offen with bock_wert set
-        
-        console.log('GameResponseWrapper: Checking isSchnicker for game', {
-          gameId: g.id,
-          currentPlayerId: currentPlayer?.id,
-          schnickerId: g.schnicker?.id,
-          status: g.status,
-          schnickerCheck,
-          statusAndBockCheck,
-          bockWert: g.bock_wert,
-          noRunde1ZahlCheck,
-          runde1Zahlen: g.runde1_zahlen,
-          allConditionsMet: schnickerCheck && statusAndBockCheck && noRunde1ZahlCheck
-        });
-        
         return schnickerCheck && statusAndBockCheck && noRunde1ZahlCheck;
       });
-      
-      console.log('GameResponseWrapper: isSchnicker result:', isSchnicker);
-      
+
       if (isSchnicker) {
-        console.log('GameResponseWrapper: Rendering round1_input_needed screen for schnicker');
         return <SchnickerResponse key="action-round1-schnicker" />;
       } else {
-        console.log('GameResponseWrapper: Rendering round1_input_needed screen for angeschnickter');
         return <PendingResponse key="action-round1-angeschnickter" />;
       }
     }
     else if (actionType === 'round2_input_needed' || needsRound2Input) {
-      console.log('GameResponseWrapper: Rendering round2_input_needed screen');
       return <Round2Response key="action-round2" />;
     } else if (actionType === 'result_available') {
       // Show final result screen for the most recently finished game involving the current player
@@ -365,7 +287,6 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
             )[0];
 
       if (finalGame) {
-        console.log('GameResponseWrapper: Rendering FinalResultScreen for game', finalGame.id);
         return (
           <FinalResultScreen
             key={`final-${finalGame.id}`}
@@ -376,7 +297,6 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
           />
         );
       }
-      console.log('GameResponseWrapper: result_available but no finished game found');
       return null;
     }
   }
@@ -422,30 +342,38 @@ const AppContent = () => {
     return () => clearInterval(interval);
   }, [currentView, refreshGames]);
   
-  // Inhaltskomponente basierend auf der aktuellen Ansicht
-  const ViewComponent = () => {
-    switch (currentView) {
-      case 'menu':
-        return <MainMenu />
-      case 'create-game':
-        return <CreateGame />
-      case 'game':
-        return <Game />
-      case 'history':
-        return <History />
-      case 'schnicks':
-        return <AllSchnicks />
-      case 'leaderboard':
-        return <Leaderboard />
-      default:
-        return <MainMenu />
-    }
-  };
-  
+  // Inhaltskomponente basierend auf der aktuellen Ansicht.
+  // WICHTIG: Direkt als JSX rendern (kein inner component), sonst entsteht
+  // bei jedem Render von AppContent ein neuer Component-Type, was zu einem
+  // Unmount/Remount-Loop des gesamten Subtrees führt.
+  let view: ReactNode;
+  switch (currentView) {
+    case 'menu':
+      view = <MainMenu />
+      break;
+    case 'create-game':
+      view = <CreateGame />
+      break;
+    case 'game':
+      view = <Game />
+      break;
+    case 'history':
+      view = <History />
+      break;
+    case 'schnicks':
+      view = <AllSchnicks />
+      break;
+    case 'leaderboard':
+      view = <Leaderboard />
+      break;
+    default:
+      view = <MainMenu />
+  }
+
   // Wickle den Inhalt in den GameResponseWrapper
   return (
     <GameResponseWrapper>
-      <ViewComponent />
+      {view}
     </GameResponseWrapper>
   );
 }

@@ -9,6 +9,7 @@ interface FullScreenLayoutProps {
   description?: string;
   backgroundColor?: string;
   hideLogo?: boolean;
+  onBack?: () => void;
 }
 
 export function FullScreenLayout({
@@ -17,6 +18,7 @@ export function FullScreenLayout({
   description,
   backgroundColor = 'bg-schnicken-darkest',
   hideLogo = false,
+  onBack,
 }: FullScreenLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -30,16 +32,28 @@ export function FullScreenLayout({
 
   return (
     <div className={`${backgroundColor} min-h-screen flex flex-col items-center px-2 pt-6 pb-4 relative overflow-hidden`}>
-      {/* Hamburger Menu Button */}
-      <button
-        onClick={toggleSidebar}
-        className="absolute top-4 left-4 z-50 p-2"
-        aria-label="Menu"
-      >
-        <div className="w-6 h-0.5 bg-white mb-1.5"></div>
-        <div className="w-6 h-0.5 bg-white mb-1.5"></div>
-        <div className="w-6 h-0.5 bg-white"></div>
-      </button>
+      {/* Back button or Hamburger Menu Button */}
+      {onBack ? (
+        <button
+          onClick={onBack}
+          className="absolute top-4 left-4 z-50 p-2 flex items-center text-white"
+          aria-label="Zurück"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      ) : (
+        <button
+          onClick={toggleSidebar}
+          className="absolute top-4 left-4 z-50 p-2"
+          aria-label="Menu"
+        >
+          <div className="w-6 h-0.5 bg-white mb-1.5"></div>
+          <div className="w-6 h-0.5 bg-white mb-1.5"></div>
+          <div className="w-6 h-0.5 bg-white"></div>
+        </button>
+      )}
 
       {/* Sidebar Component */}
       <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />

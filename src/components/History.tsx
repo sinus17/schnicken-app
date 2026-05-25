@@ -8,8 +8,23 @@ export const History: React.FC = () => {
   const { finishedGames, selectGame, getGameResult, loadFinishedGames } = useGame();
 
   React.useEffect(() => {
-    loadFinishedGames();
-  }, []);
+    console.log('[History] mount/effect, currentPlayer.id:', currentPlayer?.id);
+    if (currentPlayer?.id) {
+      console.log('[History] triggering loadFinishedGames');
+      loadFinishedGames();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlayer?.id]);
+
+  React.useEffect(() => {
+    console.log('[History] finishedGames state changed, length:', finishedGames.length, finishedGames.map(g => ({
+      id: g.id,
+      schnicker_id: g.schnicker_id,
+      angeschnickter_id: g.angeschnickter_id,
+      ergebnis: g.ergebnis,
+      created_at: g.created_at,
+    })));
+  }, [finishedGames]);
   const { navigateTo } = useAppState();
 
   if (!currentPlayer) {

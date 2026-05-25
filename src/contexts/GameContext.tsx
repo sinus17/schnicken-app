@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import type { Spieler, Schnick, SchnickZahl } from '../lib/supabase';
 import { usePlayer } from './PlayerContext';
 import { sendWhatsAppMessage, WhatsAppNotifications } from '../services/WhatsAppService';
@@ -553,9 +553,58 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * (AllSchnicks, History, Leaderboard).
    */
   const loadFinishedGames = async (silent: boolean = false) => {
-    if (!currentPlayer) return;
+    console.log('[loadFinishedGames] === START === currentPlayer:', currentPlayer?.id, 'silent:', silent);
+    if (!currentPlayer) {
+      console.warn('[loadFinishedGames] no currentPlayer – abort');
+      return;
+    }
 
     if (!silent) setIsFinishedLoading(true);
+
+    // --- DIAGNOSTICS ---------------------------------------------------------
+    try {
+      // 1) Auth user (anon vs. authenticated)
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      console.log('[loadFinishedGames][diag] auth.getUser:', {
+        userId: authData?.user?.id ?? null,
+        email: authData?.user?.email ?? null,
+        error: authError?.message ?? null,
+      });
+
+      // 2) Total schnicks count visible to current (anon) session – ignores status
+      const { count: totalCount, error: totalErr } = await supabase
+        .from('schnicks')
+        .select('*', { count: 'exact', head: true });
+      console.log('[loadFinishedGames][diag] anon visible total schnicks:', { totalCount, totalErr: totalErr?.message ?? null });
+
+      // 3) Group counts by status (visible to anon)
+      const { data: statusRows, error: statusErr } = await supabase
+        .from('schnicks')
+        .select('status');
+      if (statusErr) {
+        console.warn('[loadFinishedGames][diag] status grouping query error:', statusErr.message);
+      } else {
+        const grouped = (statusRows || []).reduce((acc: Record<string, number>, r: { status: string }) => {
+          acc[r.status] = (acc[r.status] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('[loadFinishedGames][diag] anon visible counts by status:', grouped);
+      }
+
+      // 4) Compare with service-role (admin) client to detect RLS filtering
+      const { count: adminCount, error: adminErr } = await supabaseAdmin
+        .from('schnicks')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'beendet');
+      console.log('[loadFinishedGames][diag] admin (service-role) finished count:', { adminCount, adminErr: adminErr?.message ?? null });
+
+      if ((adminCount ?? 0) > 0 && (totalCount ?? 0) === 0) {
+        console.warn('[loadFinishedGames][diag] >>> RLS suspected: admin sees rows, anon sees none.');
+      }
+    } catch (e) {
+      console.error('[loadFinishedGames][diag] unexpected diag error:', e);
+    }
+    // --- /DIAGNOSTICS --------------------------------------------------------
 
     const { data: finishedRaw, error } = await supabase
       .from('schnicks')
@@ -563,16 +612,30 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .eq('status', 'beendet')
       .order('created_at', { ascending: false });
 
+    console.log('[loadFinishedGames] schnicks query result:', {
+      count: finishedRaw?.length,
+      error: error?.message ?? null,
+      sample: (finishedRaw || [])[0] ?? null,
+    });
+
     if (error) {
-      console.error('Fehler beim Laden der beendeten Spiele:', error);
+      console.error('[loadFinishedGames] error:', error);
       if (!silent) setIsFinishedLoading(false);
       return;
     }
 
     const finishedGamesList = await expandGames(finishedRaw || []);
+    console.log('[loadFinishedGames] expanded games:', finishedGamesList.length, finishedGamesList.map(g => ({
+      id: g.id,
+      status: g.status,
+      schnicker: g.schnicker?.name,
+      angeschnickter: g.angeschnickter?.name,
+      ergebnis: g.ergebnis,
+    })));
     setFinishedGames(finishedGamesList);
 
     if (!silent) setIsFinishedLoading(false);
+    console.log('[loadFinishedGames] === DONE ===');
   };
 
   const createGame = async (opponent: Spieler, aufgabe: string, bockWert?: number | null) => {

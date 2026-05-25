@@ -15,12 +15,13 @@ interface PlayerStats {
 }
 
 export const Leaderboard: React.FC = () => {
-  const { allPlayers } = usePlayer();
+  const { allPlayers, currentPlayer } = usePlayer();
   const { finishedGames, getMVPPlayer, loadFinishedGames } = useGame();
 
   React.useEffect(() => {
-    loadFinishedGames();
-  }, []);
+    if (currentPlayer?.id) loadFinishedGames();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlayer?.id]);
   
   const mvpPlayerId = getMVPPlayer();
 

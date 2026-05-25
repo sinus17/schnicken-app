@@ -11,10 +11,14 @@ export const AllSchnicks: React.FC = () => {
   const { activeGames, finishedGames, selectGame, loadFinishedGames } = useGame();
 
   // Beendete Spiele werden lazy geladen – auf der Hauptseite werden sie nicht
-  // geladen, um die Ladezeit klein zu halten.
+  // geladen, um die Ladezeit klein zu halten. Triggern, sobald currentPlayer verfügbar ist.
   React.useEffect(() => {
-    loadFinishedGames();
-  }, []);
+    if (currentPlayer?.id) {
+      console.log('[AllSchnicks] triggering loadFinishedGames for', currentPlayer.id);
+      loadFinishedGames();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlayer?.id]);
   const { navigateTo } = useAppState();
 
   // Combine all games (active and finished)
@@ -116,19 +120,8 @@ export const AllSchnicks: React.FC = () => {
     <FullScreenLayout 
       headline="Alle Schnicks"
       backgroundColor="bg-schnicken-darkest"
+      onBack={() => navigateTo('menu')}
     >
-      {/* Back Button */}
-      <div className="fixed top-4 left-4 z-50">
-        <button 
-          onClick={() => navigateTo('menu')}
-          className="flex items-center bg-schnicken-dark px-3 py-2 rounded-full shadow-md text-schnicken-light hover:bg-schnicken-highlight transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-          </svg>
-          Zurück
-        </button>
-      </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-4">
         {allGames.length === 0 ? (
