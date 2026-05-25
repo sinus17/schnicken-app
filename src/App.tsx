@@ -237,6 +237,18 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
         !currentGame.runde1_zahlen?.some(z => z.spieler_id === currentPlayer?.id)) {
       return <SchnickerResponse />;
     }
+
+    // Runde 1: beide Spieler können noch eine Zahl eingeben müssen
+    if (currentGame.status === 'runde1' &&
+        currentPlayer &&
+        !currentGame.runde1_zahlen?.some(z => z.spieler_id === currentPlayer.id)) {
+      if (currentGame.schnicker.id === currentPlayer.id) {
+        return <SchnickerResponse />;
+      }
+      if (currentGame.angeschnickter.id === currentPlayer.id) {
+        return <PendingResponse />;
+      }
+    }
   }
   
   // General cases when no specific game is selected or the selected game doesn't need action

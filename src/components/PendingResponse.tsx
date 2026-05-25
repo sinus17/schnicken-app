@@ -17,7 +17,7 @@ import { AngeschnickterRound1ResultModal } from './AngeschnickterRound1ResultMod
 export const PendingResponse: React.FC = () => {
   console.log('RENDERING PENDING RESPONSE COMPONENT');
   const { currentPlayer } = usePlayer();
-  const { activeGames, updateBockWert, submitZahl, refreshGames, selectGame, actionType } = useGame();
+  const { activeGames, updateBockWert, submitZahl, refreshGames, selectGame, actionType, currentGame: contextCurrentGame } = useGame();
   const { navigateTo } = useAppState();
 
   // Eingabe-Werte
@@ -75,8 +75,11 @@ export const PendingResponse: React.FC = () => {
     return shouldShow;
   }) || [];
 
-  // Aktuelles Spiel = erstes offenes Spiel
-  const localGame = openGames[0];
+  // Aktuelles Spiel: bevorzuge das im Context ausgewählte Spiel (z.B. aus AllSchnicks),
+  // sonst erstes offenes Spiel
+  const localGame =
+    (contextCurrentGame && openGames.find(g => g.id === contextCurrentGame.id)) ||
+    openGames[0];
   
   // Debug-Info für gefundenes Spiel
   if (localGame) {

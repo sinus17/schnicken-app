@@ -10,7 +10,7 @@ import { SchnickerRound1ResultModal } from './SchnickerRound1ResultModal';
 export const SchnickerResponse: React.FC = () => {
   console.log('RENDERING SCHNICKER RESPONSE COMPONENT');
   const { currentPlayer } = usePlayer();
-  const { activeGames, submitZahl, refreshGames, actionType } = useGame();
+  const { activeGames, submitZahl, refreshGames, actionType, currentGame: contextCurrentGame } = useGame();
   const { navigateTo } = useAppState();
   
   const [selectedNumber, setSelectedNumber] = useState('');
@@ -53,7 +53,11 @@ export const SchnickerResponse: React.FC = () => {
     return isSchnicker && hasValidStatus && hasBockWert && hasNotSubmittedNumber;
   }) : [];
 
-  const currentGame = pendingGames[selectedGameIndex];
+  // Bevorzuge ausgewähltes Spiel aus Context, wenn es zu den pendingGames gehört
+  const contextMatchesPending = contextCurrentGame
+    ? pendingGames.find(g => g.id === contextCurrentGame.id)
+    : undefined;
+  const currentGame = contextMatchesPending || pendingGames[selectedGameIndex];
   
   // Debug-Info für das aktuelle Spiel
   useEffect(() => {
