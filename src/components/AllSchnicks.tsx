@@ -141,19 +141,19 @@ export const AllSchnicks: React.FC = () => {
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-2">
                         <span className={`font-medium ${
-                          game.schnicker?.id === currentPlayer?.id ? 'text-schnicken-accent' : 'text-schnicken-light'
+                          game.schnicker?.id === currentPlayer?.id ? 'text-white' : 'text-schnicken-light'
                         }`}>
                           {game.schnicker?.name || 'Unbekannt'}
                         </span>
-                        <span className="text-schnicken-light/50">vs</span>
+                        <span className="text-schnicken-light/70">vs</span>
                         <span className={`font-medium ${
-                          game.angeschnickter?.id === currentPlayer?.id ? 'text-schnicken-accent' : 'text-schnicken-light'
+                          game.angeschnickter?.id === currentPlayer?.id ? 'text-white' : 'text-schnicken-light'
                         }`}>
                           {game.angeschnickter?.name || 'Unbekannt'}
                         </span>
                       </div>
                       {isUserInvolved && (
-                        <span className="text-xs bg-schnicken-accent/20 text-schnicken-accent px-2 py-1 rounded-full">
+                        <span className="text-xs bg-schnicken-accent/30 text-schnicken-light px-2 py-1 rounded-full">
                           Dein Spiel
                         </span>
                       )}
@@ -189,7 +189,7 @@ export const AllSchnicks: React.FC = () => {
                   
                   {/* Footer with time */}
                   <div className="flex justify-between items-center mt-3 pt-2 border-t border-schnicken-light/10">
-                    <div className="text-xs text-schnicken-accent flex items-center">
+                    <div className="text-xs text-schnicken-light/80 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
