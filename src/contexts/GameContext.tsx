@@ -39,7 +39,7 @@ interface GameContextType {
   updateBockWert: (gameId: string, bockWert: number) => Promise<boolean>;
   clearCurrentGame: () => void;
   submitZahl: (zahl: number, runde: 1 | 2, game?: GameWithPlayers) => Promise<boolean>;
-  refreshGames: () => Promise<void>;
+  refreshGames: (silent?: boolean) => Promise<void>;
   getGameResult: (game: GameWithPlayers) => string;
   getPlayerZahl: (game: GameWithPlayers, spielerId: string, runde: 1 | 2) => number | null;
   shouldShowNumber: (game: GameWithPlayers, spielerId: string, runde: 1 | 2) => boolean;
@@ -401,10 +401,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentPlayer]);
 
-  const refreshGames = async () => {
+  const refreshGames = async (silent: boolean = false) => {
     if (!currentPlayer) return;
-    
-    setIsLoading(true);
+
+    // silent=true: keine isLoading-Toggles, damit Auto-Refresh nicht flackert
+    if (!silent) setIsLoading(true);
+    const finishLoading = () => {
+      if (!silent) setIsLoading(false);
+    };
 
     // Lade ALLE Spiele für alle Spieler (nicht nur die des aktuellen Spielers)
     const { data: games, error } = await supabase
@@ -414,7 +418,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (error) {
       console.error('Fehler beim Laden der Spiele:', error);
-      setIsLoading(false);
+      finishLoading();
       return;
     }
 
@@ -422,7 +426,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Keine Spiele gefunden
       setActiveGames([]);
       setFinishedGames([]);
-      setIsLoading(false);
+      finishLoading();
       return;
     }
     
@@ -434,7 +438,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
     if (verknüpfungsError) {
       console.error('Fehler beim Laden der Spieler-Spiel Verknüpfungen:', verknüpfungsError);
-      setIsLoading(false);
+      finishLoading();
       return;
     }
     
@@ -452,7 +456,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (playerError) {
       console.error('Fehler beim Laden der Spieler:', playerError);
-      setIsLoading(false);
+      finishLoading();
       return;
     }
 
@@ -479,7 +483,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (zahlenError) {
       console.error('Fehler beim Laden der Spielzahlen:', zahlenError);
-      setIsLoading(false);
+      finishLoading();
       return;
     }
     
@@ -559,7 +563,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     checkForRequiredActions(currentPlayerGames);
 
-    setIsLoading(false);
+    finishLoading();
   };
 
   const createGame = async (opponent: Spieler, aufgabe: string, bockWert?: number | null) => {

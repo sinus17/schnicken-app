@@ -386,7 +386,7 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
 // Hauptansicht wählen basierend auf dem AppState
 const AppContent = () => {
   const { currentView, navigateTo } = useAppState();
-  const { currentGame } = useGame();
+  const { currentGame, refreshGames } = useGame();
   const { currentPlayer } = usePlayer();
   
   // Check if we need to show Round2Response and force view to menu
@@ -400,6 +400,21 @@ const AppContent = () => {
       navigateTo('menu');
     }
   }, [currentGame, currentPlayer, currentView, navigateTo]);
+
+  // Auto-Refresh: alle 10 Sekunden silent refresh, damit neue Schnicks/Aktionen
+  // sichtbar werden. Übersprungen, wenn der User gerade tippt (Input/Textarea fokussiert)
+  // oder einen Schnick anlegt, damit Eingaben nicht gestört werden.
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentView === 'create-game') return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+        return;
+      }
+      refreshGames(true).catch(err => console.error('Auto-refresh failed:', err));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [currentView, refreshGames]);
   
   // Inhaltskomponente basierend auf der aktuellen Ansicht
   const ViewComponent = () => {
