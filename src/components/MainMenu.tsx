@@ -12,7 +12,7 @@ import { Logo } from './common/Logo';
 export const MainMenu: React.FC = () => {
   const { currentPlayer, allPlayers, isLoading: playersLoading } = usePlayer();
   const { navigateTo } = useAppState();
-  const { getMVPPlayer, finishedGames, activeGames } = useGame();
+  const { getMVPPlayer, playerWins, activeGames } = useGame();
   
   const mvpPlayerId = getMVPPlayer();
 
@@ -55,30 +55,12 @@ export const MainMenu: React.FC = () => {
     return counts;
   }, [activeGames]);
   
-  // Sort players by their number of wins
+  // Sort players by their number of wins (nutzt das aggregierte playerWins-Objekt aus dem Context)
   const sortedPlayers = useMemo(() => {
-    // First, calculate wins for each player
-    const playerWins: Record<string, number> = {};
-    
-    // Initialize with zero wins for all players
-    allPlayers.forEach(player => {
-      playerWins[player.id] = 0;
-    });
-    
-    // Count wins from finished games
-    finishedGames.forEach(game => {
-      if (game.ergebnis === 'schnicker' && game.schnicker?.id) {
-        playerWins[game.schnicker.id] = (playerWins[game.schnicker.id] || 0) + 1;
-      } else if (game.ergebnis === 'angeschnickter' && game.angeschnickter?.id) {
-        playerWins[game.angeschnickter.id] = (playerWins[game.angeschnickter.id] || 0) + 1;
-      }
-    });
-    
-    // Filter out current player and sort the rest by wins (descending)
     return allPlayers
       .filter(player => player.id !== currentPlayer?.id)
       .sort((a, b) => (playerWins[b.id] || 0) - (playerWins[a.id] || 0));
-  }, [allPlayers, currentPlayer, finishedGames]);
+  }, [allPlayers, currentPlayer, playerWins]);
 
   return (
     <FullScreenLayout 
@@ -135,8 +117,9 @@ export const MainMenu: React.FC = () => {
                     {/* Pending Schnicks Badge - rechts gespiegelt zur MVP-Position */}
                     {pendingCount > 0 && (
                       <div
-                        className="absolute right-1/4 top-1/2 transform translate-x-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md"
+                        className="absolute right-1/4 top-1/2 transform translate-x-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md pointer-events-none select-none"
                         title={`${pendingCount} offene${pendingCount === 1 ? 'r' : ''} Schnick${pendingCount === 1 ? '' : 's'} – ${player.name} ist dran`}
+                        aria-hidden="true"
                       >
                         {pendingCount} offen
                       </div>

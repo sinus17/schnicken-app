@@ -16,7 +16,11 @@ interface PlayerStats {
 
 export const Leaderboard: React.FC = () => {
   const { allPlayers } = usePlayer();
-  const { finishedGames, getMVPPlayer } = useGame();
+  const { finishedGames, getMVPPlayer, loadFinishedGames } = useGame();
+
+  React.useEffect(() => {
+    loadFinishedGames();
+  }, []);
   
   const mvpPlayerId = getMVPPlayer();
 

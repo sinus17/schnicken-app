@@ -34,12 +34,22 @@ interface GameContextType {
   finishedGames: GameWithPlayers[];
   currentGame: GameWithPlayers | null;
   isLoading: boolean;
+  isFinishedLoading: boolean;
+  /**
+   * Aggregierte Gewinn-Zähler pro Spieler-ID (aus beendeten Spielen, separat aggregiert,
+   * damit MVP/Leaderboard auf Hauptseite angezeigt werden kann, ohne alle finished games zu laden).
+   */
+  playerWins: Record<string, number>;
   createGame: (opponent: Spieler, aufgabe: string, bockWert?: number | null) => Promise<Schnick | null>;
   selectGame: (game: GameWithPlayers) => void;
   updateBockWert: (gameId: string, bockWert: number) => Promise<boolean>;
   clearCurrentGame: () => void;
   submitZahl: (zahl: number, runde: 1 | 2, game?: GameWithPlayers) => Promise<boolean>;
   refreshGames: (silent?: boolean) => Promise<void>;
+  /**
+   * Lädt beendete Spiele + zugehörige Zahlen auf Anforderung (z.B. von AllSchnicks/History/Leaderboard).
+   */
+  loadFinishedGames: (silent?: boolean) => Promise<void>;
   getGameResult: (game: GameWithPlayers) => string;
   getPlayerZahl: (game: GameWithPlayers, spielerId: string, runde: 1 | 2) => number | null;
   shouldShowNumber: (game: GameWithPlayers, spielerId: string, runde: 1 | 2) => boolean;
@@ -60,6 +70,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [finishedGames, setFinishedGames] = useState<GameWithPlayers[]>([]);
   const [currentGame, setCurrentGame] = useState<GameWithPlayers | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFinishedLoading, setIsFinishedLoading] = useState(false);
+  const [playerWins, setPlayerWins] = useState<Record<string, number>>({});
   
   // Add a notification flag to indicate when important actions require attention
   const [actionRequired, setActionRequired] = useState(false);
@@ -401,169 +413,166 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentPlayer]);
 
-  const refreshGames = async (silent: boolean = false) => {
-    if (!currentPlayer) return;
+  /**
+   * Hilfs-Helper: lädt für eine Liste von Schnicks die zugehörigen Spieler-Daten + Zahlen
+   * und expandiert sie zu GameWithPlayers.
+   */
+  const expandGames = async (games: Schnick[]): Promise<GameWithPlayers[]> => {
+    if (games.length === 0) return [];
 
-    // silent=true: keine isLoading-Toggles, damit Auto-Refresh nicht flackert
-    if (!silent) setIsLoading(true);
-    const finishLoading = () => {
-      if (!silent) setIsLoading(false);
-    };
+    const gameIds = games.map(g => g.id);
 
-    // Lade ALLE Spiele für alle Spieler (nicht nur die des aktuellen Spielers)
-    const { data: games, error } = await supabase
-      .from('schnicks')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [{ data: spielerSchnicks }, { data: zahlen }] = await Promise.all([
+      supabase.from('spieler_schnicks').select('*').in('schnick_id', gameIds),
+      supabase.from('schnick_zahlen').select('*').in('schnick_id', gameIds),
+    ]);
 
-    if (error) {
-      console.error('Fehler beim Laden der Spiele:', error);
-      finishLoading();
-      return;
-    }
-
-    if (!games || games.length === 0) {
-      // Keine Spiele gefunden
-      setActiveGames([]);
-      setFinishedGames([]);
-      finishLoading();
-      return;
-    }
-    
-    // Lade alle Spieler-Spiel Verknüpfungen für alle Spiele
-    const { data: spielerSchnicks, error: verknüpfungsError } = await supabase
-      .from('spieler_schnicks')
-      .select('*')
-      .in('schnick_id', games.map(game => game.id));
-      
-    if (verknüpfungsError) {
-      console.error('Fehler beim Laden der Spieler-Spiel Verknüpfungen:', verknüpfungsError);
-      finishLoading();
-      return;
-    }
-    
-    // Sammle alle Spieler-IDs
     const playerIds = new Set<string>();
-    spielerSchnicks?.forEach((verknüpfung: SpielerSchnick) => {
-      playerIds.add(verknüpfung.spieler_id);
+    games.forEach(g => {
+      if (g.schnicker_id) playerIds.add(g.schnicker_id);
+      if (g.angeschnickter_id) playerIds.add(g.angeschnickter_id);
     });
+    spielerSchnicks?.forEach((v: SpielerSchnick) => playerIds.add(v.spieler_id));
 
-    // Lade alle beteiligten Spieler
-    const { data: players, error: playerError } = await supabase
+    const { data: players } = await supabase
       .from('spieler')
       .select('*')
       .in('id', Array.from(playerIds));
 
-    if (playerError) {
-      console.error('Fehler beim Laden der Spieler:', playerError);
-      finishLoading();
-      return;
-    }
-
-    const playersMap = players?.reduce((map: Record<string, Spieler>, player: Spieler) => {
-      map[player.id] = player;
+    const playersMap = (players || []).reduce((map: Record<string, Spieler>, p: Spieler) => {
+      map[p.id] = p;
       return map;
-    }, {} as Record<string, Spieler>) || {};
-    
-    // Spieler für jedes Spiel zuordnen
-    const spielerSchnicksByGame = spielerSchnicks?.reduce((map: Record<string, SpielerSchnick[]>, verknüpfung: SpielerSchnick) => {
-      if (!map[verknüpfung.schnick_id]) {
-        map[verknüpfung.schnick_id] = [];
-      }
-      map[verknüpfung.schnick_id].push(verknüpfung);
-      return map;
-    }, {} as Record<string, SpielerSchnick[]>);
+    }, {} as Record<string, Spieler>);
 
-    // Zahlen für die Spiele laden
-    const gameIds = games.map(game => game.id);
-    const { data: zahlen, error: zahlenError } = await supabase
-      .from('schnick_zahlen')
-      .select('*')
-      .in('schnick_id', gameIds);
+    const spielerSchnicksByGame = (spielerSchnicks || []).reduce(
+      (map: Record<string, SpielerSchnick[]>, v: SpielerSchnick) => {
+        if (!map[v.schnick_id]) map[v.schnick_id] = [];
+        map[v.schnick_id].push(v);
+        return map;
+      },
+      {} as Record<string, SpielerSchnick[]>,
+    );
 
-    if (zahlenError) {
-      console.error('Fehler beim Laden der Spielzahlen:', zahlenError);
-      finishLoading();
-      return;
-    }
-    
-    console.log('Geladene Spielzahlen:', zahlen);
-    
-    // Spiele mit Spielern und Zahlen erweitern
     const unknownPlayer = { id: '', name: 'Unbekannt', created_at: '', avatar_url: null };
-    const gamesWithPlayers: GameWithPlayers[] = games.map(game => {
-      const gameZahlen = zahlen?.filter(z => z.schnick_id === game.id) || [];
+    return games.map(game => {
+      const gameZahlen = (zahlen || []).filter(z => z.schnick_id === game.id);
       const gamePlayerIds = spielerSchnicksByGame[game.id] || [];
 
-      // Schnicker / Angeschnickter werden anhand der schnicks-Spalten zugeordnet,
-      // NICHT anhand der Reihenfolge aus spieler_schnicks (die hat keine garantierte Order).
       let schnicker = game.schnicker_id ? playersMap[game.schnicker_id] : undefined;
       let angeschnickter = game.angeschnickter_id ? playersMap[game.angeschnickter_id] : undefined;
 
-      // Fallback: falls die Spalten leer sind, auf Junction-Reihenfolge zurückfallen.
       if (!schnicker || !angeschnickter) {
         const spieler = gamePlayerIds
-          .map((verknüpfung: SpielerSchnick) => playersMap[verknüpfung.spieler_id])
+          .map((v: SpielerSchnick) => playersMap[v.spieler_id])
           .filter(Boolean);
         schnicker = schnicker || spieler[0];
-        angeschnickter = angeschnickter || spieler.find(p => p?.id !== schnicker?.id) || spieler[1];
+        angeschnickter =
+          angeschnickter || spieler.find(p => p?.id !== schnicker?.id) || spieler[1];
       }
-
-      const runde1_zahlen = gameZahlen.filter(z => z.runde === 1);
-      const runde2_zahlen = gameZahlen.filter(z => z.runde === 2);
-
-      console.log(`Spiel ${game.id} (${game.status}): Runde 1 Zahlen: ${runde1_zahlen.length}, Runde 2 Zahlen: ${runde2_zahlen.length}`);
 
       return {
         ...game,
         schnicker: schnicker || unknownPlayer,
         angeschnickter: angeschnickter || unknownPlayer,
-        runde1_zahlen,
-        runde2_zahlen,
-      };
+        runde1_zahlen: gameZahlen.filter(z => z.runde === 1),
+        runde2_zahlen: gameZahlen.filter(z => z.runde === 2),
+      } as GameWithPlayers;
     });
+  };
 
-    // Aktive und beendete Spiele trennen
-    const activeGamesList = gamesWithPlayers.filter(game => game.status !== 'beendet');
-    const finishedGamesList = gamesWithPlayers.filter(game => game.status === 'beendet');
-    
-    console.log('Setting activeGames:', activeGamesList.length, activeGamesList.map(g => ({ id: g.id, status: g.status })));
-    console.log('Setting finishedGames:', finishedGamesList.length, finishedGamesList.map(g => ({ id: g.id, status: g.status })));
-    
-    setActiveGames(activeGamesList);
-    setFinishedGames(finishedGamesList);
-    
-    // Aktuelles Spiel aktualisieren, wenn eins ausgewählt ist
-    if (currentGame) {
-      const updatedGame = gamesWithPlayers.find(g => g.id === currentGame.id);
-      if (updatedGame) {
-        setCurrentGame(updatedGame);
+  /**
+   * Lightweight Aggregat: zählt Wins pro Spieler aus beendeten Spielen,
+   * ohne die kompletten Game-Details zu laden.
+   */
+  const refreshPlayerWins = async () => {
+    const { data, error } = await supabase
+      .from('schnicks')
+      .select('schnicker_id, angeschnickter_id, ergebnis')
+      .eq('status', 'beendet');
+    if (error || !data) return;
+    const wins: Record<string, number> = {};
+    for (const g of data) {
+      if (g.ergebnis === 'schnicker' && g.schnicker_id) {
+        wins[g.schnicker_id] = (wins[g.schnicker_id] || 0) + 1;
+      } else if (g.ergebnis === 'angeschnickter' && g.angeschnickter_id) {
+        wins[g.angeschnickter_id] = (wins[g.angeschnickter_id] || 0) + 1;
       }
     }
-    
-    // Check for required actions after games are loaded (important for page reloads)
-    // Filter to only games where the current player is involved
-    const currentPlayerGames = activeGamesList.filter(game => 
-      game.schnicker_id === currentPlayer.id || 
-      game.angeschnickter_id === currentPlayer.id ||
-      game.schnicker?.id === currentPlayer.id || 
-      game.angeschnickter?.id === currentPlayer.id
+    setPlayerWins(wins);
+  };
+
+  /**
+   * Lädt nur AKTIVE Spiele (status != beendet). Beendete Spiele werden separat
+   * via loadFinishedGames() bei Bedarf nachgeladen, um die Hauptseite schnell zu halten.
+   */
+  const refreshGames = async (silent: boolean = false) => {
+    if (!currentPlayer) return;
+
+    if (!silent) setIsLoading(true);
+    const finishLoading = () => {
+      if (!silent) setIsLoading(false);
+    };
+
+    const { data: activeGamesRaw, error } = await supabase
+      .from('schnicks')
+      .select('*')
+      .neq('status', 'beendet')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Fehler beim Laden der aktiven Spiele:', error);
+      finishLoading();
+      return;
+    }
+
+    const activeGamesList = await expandGames(activeGamesRaw || []);
+    setActiveGames(activeGamesList);
+
+    if (currentGame) {
+      const updated = activeGamesList.find(g => g.id === currentGame.id);
+      if (updated) setCurrentGame(updated);
+    }
+
+    const currentPlayerGames = activeGamesList.filter(
+      game =>
+        game.schnicker_id === currentPlayer.id ||
+        game.angeschnickter_id === currentPlayer.id ||
+        game.schnicker?.id === currentPlayer.id ||
+        game.angeschnickter?.id === currentPlayer.id,
     );
-    
-    console.log('DEBUG - Checking for required actions with games:', currentPlayerGames.map(g => ({
-      id: g.id,
-      status: g.status,
-      schnicker_id: g.schnicker_id,
-      angeschnickter_id: g.angeschnickter_id,
-      schnicker: g.schnicker?.id,
-      angeschnickter: g.angeschnickter?.id,
-      bock_wert: g.bock_wert,
-      current_player: currentPlayer?.id
-    })));
-    
     checkForRequiredActions(currentPlayerGames);
 
+    // Wins-Aggregat parallel aktualisieren (lightweight, keine zahlen)
+    refreshPlayerWins();
+
     finishLoading();
+  };
+
+  /**
+   * Lädt beendete Spiele (mit Zahlen) – nur auf Anforderung von Seiten, die das brauchen
+   * (AllSchnicks, History, Leaderboard).
+   */
+  const loadFinishedGames = async (silent: boolean = false) => {
+    if (!currentPlayer) return;
+
+    if (!silent) setIsFinishedLoading(true);
+
+    const { data: finishedRaw, error } = await supabase
+      .from('schnicks')
+      .select('*')
+      .eq('status', 'beendet')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Fehler beim Laden der beendeten Spiele:', error);
+      if (!silent) setIsFinishedLoading(false);
+      return;
+    }
+
+    const finishedGamesList = await expandGames(finishedRaw || []);
+    setFinishedGames(finishedGamesList);
+
+    if (!silent) setIsFinishedLoading(false);
   };
 
   const createGame = async (opponent: Spieler, aufgabe: string, bockWert?: number | null) => {
@@ -1008,37 +1017,17 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return '';
   };
 
-  // Calculate MVP (player with most wins)
+  // Calculate MVP (player with most wins) – nutzt das lightweight playerWins-Aggregat,
+  // damit der MVP-Badge auch ohne vollständig geladene finishedGames angezeigt werden kann.
   const getMVPPlayer = (): string | null => {
-    const playerWins: { [playerId: string]: { name: string; wins: number } } = {};
-    
-    finishedGames.forEach(game => {
-      if (game.ergebnis === 'schnicker' && game.schnicker?.id) {
-        // Schnicker won
-        if (!playerWins[game.schnicker.id]) {
-          playerWins[game.schnicker.id] = { name: game.schnicker.name, wins: 0 };
-        }
-        playerWins[game.schnicker.id].wins++;
-      } else if (game.ergebnis === 'angeschnickter' && game.angeschnickter?.id) {
-        // Angeschnickter won
-        if (!playerWins[game.angeschnickter.id]) {
-          playerWins[game.angeschnickter.id] = { name: game.angeschnickter.name, wins: 0 };
-        }
-        playerWins[game.angeschnickter.id].wins++;
-      }
-    });
-    
-    // Find player with most wins
     let mvpId: string | null = null;
     let maxWins = 0;
-    
-    Object.entries(playerWins).forEach(([playerId, data]) => {
-      if (data.wins > maxWins) {
-        maxWins = data.wins;
+    Object.entries(playerWins).forEach(([playerId, wins]) => {
+      if (wins > maxWins) {
+        maxWins = wins;
         mvpId = playerId;
       }
     });
-    
     return mvpId;
   };
 
@@ -1049,12 +1038,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         finishedGames,
         currentGame,
         isLoading,
+        isFinishedLoading,
+        playerWins,
         createGame,
         selectGame,
         updateBockWert,
         clearCurrentGame,
         submitZahl,
         refreshGames,
+        loadFinishedGames,
         getGameResult,
         getPlayerZahl,
         shouldShowNumber,

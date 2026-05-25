@@ -8,7 +8,13 @@ import { FullScreenLayout } from './layout/FullScreenLayout';
 
 export const AllSchnicks: React.FC = () => {
   const { currentPlayer } = usePlayer();
-  const { activeGames, finishedGames, selectGame } = useGame();
+  const { activeGames, finishedGames, selectGame, loadFinishedGames } = useGame();
+
+  // Beendete Spiele werden lazy geladen – auf der Hauptseite werden sie nicht
+  // geladen, um die Ladezeit klein zu halten.
+  React.useEffect(() => {
+    loadFinishedGames();
+  }, []);
   const { navigateTo } = useAppState();
 
   // Combine all games (active and finished)

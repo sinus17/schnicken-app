@@ -5,7 +5,11 @@ import { useAppState } from '../contexts/AppStateContext';
 
 export const History: React.FC = () => {
   const { currentPlayer } = usePlayer();
-  const { finishedGames, selectGame, getGameResult } = useGame();
+  const { finishedGames, selectGame, getGameResult, loadFinishedGames } = useGame();
+
+  React.useEffect(() => {
+    loadFinishedGames();
+  }, []);
   const { navigateTo } = useAppState();
 
   if (!currentPlayer) {
