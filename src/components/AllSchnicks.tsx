@@ -81,9 +81,22 @@ export const AllSchnicks: React.FC = () => {
   };
 
   const handleGameSelect = (game: GameWithPlayers) => {
+    const isParticipant =
+      game.schnicker?.id === currentPlayer?.id ||
+      game.angeschnickter?.id === currentPlayer?.id;
+
+    // Aktive Schnicks von anderen Spielern dürfen NICHT geöffnet werden
+    // (kein Setzen / Eingeben für Unbeteiligte).
+    if (game.status !== 'beendet' && !isParticipant) {
+      console.warn('AllSchnicks: Klick auf fremden aktiven Schnick ignoriert', {
+        gameId: game.id,
+        currentPlayerId: currentPlayer?.id,
+      });
+      return;
+    }
+
     selectGame(game);
-    
-    // Check if game is still active and show appropriate response screens
+
     if (game.status !== 'beendet') {
       // Navigate back to menu to show GameResponseWrapper
       navigateTo('menu');

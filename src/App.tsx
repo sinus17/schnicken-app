@@ -199,8 +199,14 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
     );
   }
   
-  // Check for active game explicitly selected from SchnickHistory
-  if (currentGame && currentGame.status !== 'beendet') {
+  // Check for active game explicitly selected from SchnickHistory.
+  // Wichtig: nur, wenn der aktuelle Spieler an diesem Schnick beteiligt ist – sonst
+  // dürfen Action-Screens NICHT angezeigt werden (kein Setzen für Unbeteiligte).
+  const currentGameInvolvesPlayer = !!currentGame && !!currentPlayer && (
+    currentGame.schnicker?.id === currentPlayer.id ||
+    currentGame.angeschnickter?.id === currentPlayer.id
+  );
+  if (currentGame && currentGame.status !== 'beendet' && currentGameInvolvesPlayer) {
     console.log('Selected game details:', {
       id: currentGame.id,
       status: currentGame.status,

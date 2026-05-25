@@ -46,10 +46,16 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
     return isPlayerInGame && isStatusRunde2 && hasNotSubmittedNumber;
   }) : [];
 
-  // Use currentGame from context if it's in runde2 state, otherwise use from pendingGames
-  const currentGame = (contextCurrentGame && contextCurrentGame.status === 'runde2') ? 
-    contextCurrentGame : 
-    pendingGames[selectedGameIndex];
+  // Use currentGame from context if it's in runde2 state AND der aktuelle Spieler beteiligt ist,
+  // sonst aus pendingGames (die bereits nach Beteiligung gefiltert sind).
+  const contextGameIsParticipant =
+    !!contextCurrentGame && !!currentPlayer && (
+      contextCurrentGame.schnicker?.id === currentPlayer.id ||
+      contextCurrentGame.angeschnickter?.id === currentPlayer.id
+    );
+  const currentGame = (contextCurrentGame && contextCurrentGame.status === 'runde2' && contextGameIsParticipant)
+    ? contextCurrentGame
+    : pendingGames[selectedGameIndex];
   
   console.log('Round2Response selected game:', { 
     currentGame, 
@@ -67,11 +73,24 @@ export const Round2Response: React.FC<Round2ResponseProps> = ({ forceShow = fals
   
   console.log('Round2Response rendering with forceShow =', forceShow);
 
-  // Use contextCurrentGame as a fallback if currentGame is not available
-  const gameToUse = currentGame || contextCurrentGame;
-  
+  // Use contextCurrentGame as a fallback if currentGame is not available – aber NUR wenn der Spieler beteiligt ist.
+  const gameToUse = currentGame || (contextGameIsParticipant ? contextCurrentGame : null);
+
   if (!gameToUse) {
     console.log('Round2Response: No game to show even with forceShow');
+    return null;
+  }
+
+  // Sicherheits-Guard: aktueller Spieler MUSS am Spiel beteiligt sein.
+  const isPlayerInSelectedGame = currentPlayer && (
+    gameToUse.schnicker?.id === currentPlayer.id ||
+    gameToUse.angeschnickter?.id === currentPlayer.id
+  );
+  if (!isPlayerInSelectedGame) {
+    console.warn('Round2Response: aktueller Spieler nicht am Spiel beteiligt – kein Render', {
+      gameId: gameToUse.id,
+      currentPlayerId: currentPlayer?.id,
+    });
     return null;
   }
   

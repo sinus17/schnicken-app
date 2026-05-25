@@ -623,7 +623,23 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('submitZahl: Kein Spieler oder kein Spiel aktiv', { currentPlayer, gameToUse });
       return false;
     }
-    
+
+    // Sicherheits-Guard: aktueller Spieler MUSS Schnicker oder Angeschnickter sein
+    const isParticipant =
+      gameToUse.schnicker_id === currentPlayer.id ||
+      gameToUse.angeschnickter_id === currentPlayer.id ||
+      gameToUse.schnicker?.id === currentPlayer.id ||
+      gameToUse.angeschnickter?.id === currentPlayer.id;
+    if (!isParticipant) {
+      console.error('submitZahl: Spieler ist nicht am Spiel beteiligt – Eingabe abgelehnt', {
+        gameId: gameToUse.id,
+        spielerId: currentPlayer.id,
+        schnickerId: gameToUse.schnicker_id,
+        angeschnickterId: gameToUse.angeschnickter_id,
+      });
+      return false;
+    }
+
     // Überprüfe, ob der Spieler in dieser Runde bereits eine Zahl abgegeben hat
     const zahlenArray = runde === 1 ? gameToUse.runde1_zahlen : gameToUse.runde2_zahlen;
     const hatBereitsGewählt = zahlenArray?.some(z => z.spieler_id === currentPlayer.id);
@@ -860,7 +876,31 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const updateBockWert = async (gameId: string, bockWert: number): Promise<boolean> => {
     if (!gameId || typeof bockWert !== 'number' || bockWert < 1) return false;
-    
+
+    // Sicherheits-Guard: nur der Angeschnickter darf den Bock-Wert setzen
+    if (!currentPlayer) {
+      console.error('updateBockWert: Kein currentPlayer – abgelehnt');
+      return false;
+    }
+    const game =
+      (currentGame && currentGame.id === gameId ? currentGame : null) ||
+      activeGames.find(g => g.id === gameId);
+    if (!game) {
+      console.error('updateBockWert: Spiel nicht in activeGames gefunden – abgelehnt', { gameId });
+      return false;
+    }
+    const isAngeschnickter =
+      game.angeschnickter_id === currentPlayer.id ||
+      game.angeschnickter?.id === currentPlayer.id;
+    if (!isAngeschnickter) {
+      console.error('updateBockWert: Spieler ist nicht der Angeschnickter – abgelehnt', {
+        gameId,
+        spielerId: currentPlayer.id,
+        angeschnickterId: game.angeschnickter_id,
+      });
+      return false;
+    }
+
     const { error } = await supabase
       .from('schnicks')
       .update({ bock_wert: bockWert })
