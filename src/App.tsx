@@ -24,13 +24,14 @@ import { SchnickerResponse } from './components/SchnickerResponse'
 import { Round2Response } from './components/Round2Response'
 import { Round1ResultModal } from './components/Round1ResultModal'
 import { Round1CompletedResultModal } from './components/Round1CompletedResultModal'
+import { FinalResultScreen } from './components/FinalResultScreen'
 // AutoRefreshHandler removed to prevent duplicate Supabase instances
 // Debug components removed from production
 
 // Wrapper Komponente, die offene Spiele prüft und entsprechende Aktionsscreens anzeigt
 const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
   // Extract all game-related hooks at the top level to avoid conditional hook errors
-  const { activeGames, finishedGames, currentGame, refreshGames, actionRequired, actionType } = useGame();
+  const { activeGames, finishedGames, currentGame, refreshGames, actionRequired, actionType, resetActionNotification } = useGame();
   const { currentPlayer } = usePlayer();
   const [showRound1Result, setShowRound1Result] = useState(false);
   const [round1ResultGame, setRound1ResultGame] = useState<GameWithPlayers | null>(null);
@@ -342,8 +343,34 @@ const GameResponseWrapper = ({ children }: { children: ReactNode }) => {
       console.log('GameResponseWrapper: Rendering round2_input_needed screen');
       return <Round2Response key="action-round2" />;
     } else if (actionType === 'result_available') {
-      // Result screens are already handled by other code above
-      console.log('GameResponseWrapper: Skipping result_available, handled elsewhere');
+      // Show final result screen for the most recently finished game involving the current player
+      const allGames = [...(finishedGames || []), ...(activeGames || [])];
+      const involvedFinishedGames = allGames.filter(g =>
+        g.status === 'beendet' &&
+        (g.schnicker?.id === currentPlayer?.id || g.angeschnickter?.id === currentPlayer?.id)
+      );
+      // Prefer the explicitly selected currentGame if it is finished, otherwise the most recent finished game
+      const finalGame =
+        (currentGame && currentGame.status === 'beendet' &&
+          (currentGame.schnicker?.id === currentPlayer?.id || currentGame.angeschnickter?.id === currentPlayer?.id))
+          ? currentGame
+          : involvedFinishedGames.sort((a, b) =>
+              new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+            )[0];
+
+      if (finalGame) {
+        console.log('GameResponseWrapper: Rendering FinalResultScreen for game', finalGame.id);
+        return (
+          <FinalResultScreen
+            key={`final-${finalGame.id}`}
+            game={finalGame}
+            onClose={() => {
+              resetActionNotification();
+            }}
+          />
+        );
+      }
+      console.log('GameResponseWrapper: result_available but no finished game found');
       return null;
     }
   }
