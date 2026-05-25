@@ -12,9 +12,48 @@ import { Logo } from './common/Logo';
 export const MainMenu: React.FC = () => {
   const { currentPlayer, allPlayers, isLoading: playersLoading } = usePlayer();
   const { navigateTo } = useAppState();
-  const { getMVPPlayer, finishedGames } = useGame();
+  const { getMVPPlayer, finishedGames, activeGames } = useGame();
   
   const mvpPlayerId = getMVPPlayer();
+
+  // Anzahl offener Schnicks pro Spieler, bei denen dieser Spieler noch eine Aktion ausführen muss
+  const pendingActionCountByPlayer = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (activeGames || []).forEach(game => {
+      const isAngeschnickter = (playerId: string) =>
+        game.angeschnickter?.id === playerId || game.angeschnickter_id === playerId;
+      const isInGame = (playerId: string) =>
+        isAngeschnickter(playerId) ||
+        game.schnicker?.id === playerId ||
+        game.schnicker_id === playerId;
+
+      const candidates = [game.schnicker?.id, game.angeschnickter?.id].filter(Boolean) as string[];
+      candidates.forEach(playerId => {
+        if (!isInGame(playerId)) return;
+
+        let needsAction = false;
+
+        if (game.status === 'offen') {
+          if (game.bock_wert === null) {
+            // Angeschnickter muss Bock-Wert setzen
+            needsAction = isAngeschnickter(playerId);
+          } else {
+            // Bock gesetzt: wer noch keine Runde-1-Zahl hat, ist dran
+            needsAction = !game.runde1_zahlen?.some(z => z.spieler_id === playerId);
+          }
+        } else if (game.status === 'runde1') {
+          needsAction = !game.runde1_zahlen?.some(z => z.spieler_id === playerId);
+        } else if (game.status === 'runde2') {
+          needsAction = !game.runde2_zahlen?.some(z => z.spieler_id === playerId);
+        }
+
+        if (needsAction) {
+          counts[playerId] = (counts[playerId] || 0) + 1;
+        }
+      });
+    });
+    return counts;
+  }, [activeGames]);
   
   // Sort players by their number of wins
   const sortedPlayers = useMemo(() => {
@@ -70,7 +109,9 @@ export const MainMenu: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {sortedPlayers.map((player) => (
+            {sortedPlayers.map((player) => {
+              const pendingCount = pendingActionCountByPlayer[player.id] || 0;
+              return (
                 <ButtonCard
                   key={player.id}
                   onClick={() => {
@@ -91,6 +132,15 @@ export const MainMenu: React.FC = () => {
                         MVP
                       </div>
                     )}
+                    {/* Pending Schnicks Badge - rechts gespiegelt zur MVP-Position */}
+                    {pendingCount > 0 && (
+                      <div
+                        className="absolute right-1/4 top-1/2 transform translate-x-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md"
+                        title={`${pendingCount} offene${pendingCount === 1 ? 'r' : ''} Schnick${pendingCount === 1 ? '' : 's'} – ${player.name} ist dran`}
+                      >
+                        {pendingCount} offen
+                      </div>
+                    )}
                     {/* Avatar and name - identical for all players */}
                     <div className="flex items-center gap-4 justify-center w-full">
                       <Avatar
@@ -102,8 +152,8 @@ export const MainMenu: React.FC = () => {
                     </div>
                   </div>
                 </ButtonCard>
-              ))
-            }
+              );
+            })}
           </div>
         )}
         
