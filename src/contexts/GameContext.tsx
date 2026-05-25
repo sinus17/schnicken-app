@@ -486,24 +486,34 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log('Geladene Spielzahlen:', zahlen);
     
     // Spiele mit Spielern und Zahlen erweitern
+    const unknownPlayer = { id: '', name: 'Unbekannt', created_at: '', avatar_url: null };
     const gamesWithPlayers: GameWithPlayers[] = games.map(game => {
       const gameZahlen = zahlen?.filter(z => z.schnick_id === game.id) || [];
       const gamePlayerIds = spielerSchnicksByGame[game.id] || [];
-      
-      // Die ersten beiden Spieler im Spiel bestimmen
-      const spieler = gamePlayerIds.map((verknüpfung: SpielerSchnick) => playersMap[verknüpfung.spieler_id]).filter(Boolean);
-      
+
+      // Schnicker / Angeschnickter werden anhand der schnicks-Spalten zugeordnet,
+      // NICHT anhand der Reihenfolge aus spieler_schnicks (die hat keine garantierte Order).
+      let schnicker = game.schnicker_id ? playersMap[game.schnicker_id] : undefined;
+      let angeschnickter = game.angeschnickter_id ? playersMap[game.angeschnickter_id] : undefined;
+
+      // Fallback: falls die Spalten leer sind, auf Junction-Reihenfolge zurückfallen.
+      if (!schnicker || !angeschnickter) {
+        const spieler = gamePlayerIds
+          .map((verknüpfung: SpielerSchnick) => playersMap[verknüpfung.spieler_id])
+          .filter(Boolean);
+        schnicker = schnicker || spieler[0];
+        angeschnickter = angeschnickter || spieler.find(p => p?.id !== schnicker?.id) || spieler[1];
+      }
+
       const runde1_zahlen = gameZahlen.filter(z => z.runde === 1);
       const runde2_zahlen = gameZahlen.filter(z => z.runde === 2);
-      
+
       console.log(`Spiel ${game.id} (${game.status}): Runde 1 Zahlen: ${runde1_zahlen.length}, Runde 2 Zahlen: ${runde2_zahlen.length}`);
-      
+
       return {
         ...game,
-        // Der erste Spieler ist der Schnicker, der zweite der Angeschnickte
-        // Dies ist eine Vereinfachung - in einer echten App würde man hier eine Rolle in der spieler_schnicks Tabelle haben
-        schnicker: spieler[0] || { id: '', name: 'Unbekannt', created_at: '', avatar_url: null },
-        angeschnickter: spieler[1] || { id: '', name: 'Unbekannt', created_at: '', avatar_url: null },
+        schnicker: schnicker || unknownPlayer,
+        angeschnickter: angeschnickter || unknownPlayer,
         runde1_zahlen,
         runde2_zahlen,
       };
